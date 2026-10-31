@@ -4,7 +4,7 @@ export default function App() {
   // State Mode Motion Super
   const [isMotionSuper, setIsMotionSuper] = useState(true);
 
-  // State Ukuran Banner (default 2x2 seperti gambar)
+  // State Ukuran Banner (default 2x2)
   const [colSpan, setColSpan] = useState(2);
   const [rowSpan, setRowSpan] = useState(2);
 
@@ -40,6 +40,7 @@ export default function App() {
 
   // Handle Resize Touch / Mouse (Drag Corner)
   const handleTouchStart = (e) => {
+    e.stopPropagation();
     const touch = e.touches[0];
     dragStartRef.current = { x: touch.clientX, y: touch.clientY, initialCols: colSpan, initialRows: rowSpan };
   };
@@ -50,9 +51,9 @@ export default function App() {
     const diffX = touch.clientX - dragStartRef.current.x;
     const diffY = touch.clientY - dragStartRef.current.y;
 
-    // Sensitivitas drag per 45px per grid step
-    const addCols = Math.round(diffX / 45);
-    const addRows = Math.round(diffY / 45);
+    // Sensitivitas drag per 40px
+    const addCols = Math.round(diffX / 40);
+    const addRows = Math.round(diffY / 40);
 
     const nextCols = Math.min(Math.max(dragStartRef.current.initialCols + addCols, 1), 5);
     const nextRows = Math.min(Math.max(dragStartRef.current.initialRows + addRows, 1), 6);
@@ -167,7 +168,7 @@ export default function App() {
               {colSpan}x{rowSpan}
             </span>
 
-            {/* Tombol Edit / Ganti Isi Modal */}
+            {/* Tombol Edit / Buka Modal */}
             <button
               onClick={() => setIsModalOpen(true)}
               className="absolute top-2 right-2 z-20 w-5 h-5 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-gray-300 text-xs border border-white/10"
@@ -232,16 +233,15 @@ export default function App() {
               )}
             </div>
 
-            {/* HANDLE RESIZE GAYA CORNER GESTURE IOS (Gambar 2) */}
+            {/* HANDLE RESIZE GAYA CORNER GESTURE IOS DI POJOK KANAN BAWAH */}
             <div
               onTouchStart={handleTouchStart}
               onTouchMove={handleTouchMove}
               onTouchEnd={handleTouchEnd}
-              className="absolute -bottom-1 -right-1 w-7 h-7 flex items-center justify-center cursor-nwse-resize z-30 select-none active:scale-125 transition-transform"
+              className="absolute -bottom-1.5 -right-1.5 w-8 h-8 flex items-center justify-center cursor-nwse-resize z-30 select-none touch-none active:scale-125 transition-transform"
               title="Tarik untuk ubah ukuran"
             >
-              {/* Indikator Busur Sudut Melengkung Putih */}
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" className="rotate-[-10deg] drop-shadow-[0_0_6px_rgba(255,255,255,0.8)]">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" className="rotate-[-10deg] drop-shadow-[0_0_6px_rgba(255,255,255,0.85)]">
                 <path
                   d="M19 7C19 13.6274 13.6274 19 7 19"
                   stroke="#ffffff"
@@ -252,7 +252,7 @@ export default function App() {
             </div>
           </div>
 
-          {/* Dummy Empty Slots Sisa Grid (Simulasi #2 s/d #37) */}
+          {/* Dummy Empty Slots Sisa Grid (#2 s/d #35) */}
           {Array.from({ length: 34 }).map((_, i) => (
             <div
               key={i}
@@ -267,7 +267,7 @@ export default function App() {
         </div>
       </div>
 
-      {/* MODAL FORM SEWA / EDIT BANNER (Mirip iOS + Glassmorphism Halus) */}
+      {/* MODAL FORM SEWA / EDIT BANNER (Mirip iOS + Semi-Glass) */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fadeIn">
           <div className="w-full max-w-sm rounded-[32px] bg-[#111722]/85 backdrop-blur-2xl border border-white/10 p-5 shadow-[0_16px_40px_rgba(0,0,0,0.8)] flex flex-col gap-4 text-left relative">
