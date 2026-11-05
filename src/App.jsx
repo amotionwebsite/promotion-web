@@ -1,4 +1,4 @@
-  import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 
 export default function App() {
   // State Langganan Aktif: 'Basic' | 'Pro' | 'Super'
@@ -10,8 +10,8 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('slots'); // 'slots' | 'subscription' | 'plugin' | 'profile'
 
   // State Ukuran Grid Slot
-  const [colSpan, setColSpan] = useState(2);
-  const [rowSpan, setRowSpan] = useState(2);
+  const [colSpan, setColSpan] = useState(5);
+  const [rowSpan, setRowSpan] = useState(4);
   const [selectedRatio, setSelectedRatio] = useState('1:1');
 
   // State User Profile ("Saya")
@@ -19,10 +19,11 @@ export default function App() {
     name: 'Anak Programmer Indonesia',
     handle: '@anakprogrammer',
     avatar: 'https://cdn-icons-png.flaticon.com/512/3670/3670157.png',
+    customFontName: '',
   });
 
   // State Data Banner & Media
-  const [isOccupied, setIsOccupied] = useState(false);
+  const [isOccupied, setIsOccupied] = useState(true);
   const [bannerData, setBannerData] = useState({
     name: 'Anak Programmer Indonesia',
     image: null,
@@ -51,7 +52,7 @@ export default function App() {
     {
       id: 1,
       name: 'Anak Programmer Indonesia',
-      size: '5x5 (25 Slot)',
+      size: '5x4 (20 Slot)',
       date: '05 Nov 2026',
     },
   ]);
@@ -70,13 +71,13 @@ export default function App() {
   const [isPaymentOpen, setIsPaymentOpen] = useState(false);
   const [isProcessingPay, setIsProcessingPay] = useState(false);
 
-  // Audio Ref untuk pemutar musik
+  // Audio & Drag Ref
   const audioRef = useRef(null);
   const dragStartRef = useRef(null);
 
   // Persistence Load LocalStorage
   useEffect(() => {
-    const saved = localStorage.getItem('promotion_slot_data_v2');
+    const saved = localStorage.getItem('promotion_slot_data_v3');
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
@@ -95,7 +96,7 @@ export default function App() {
 
   const persistAll = (updatedBanner, cols, rows, occupied, profile, plan, history) => {
     localStorage.setItem(
-      'promotion_slot_data_v2',
+      'promotion_slot_data_v3',
       JSON.stringify({
         bannerData: updatedBanner,
         colSpan: cols,
@@ -173,7 +174,38 @@ export default function App() {
     }
   };
 
-  // Upload Musik Sendiri (MP3)
+  // 1. Upload Foto Profil User
+  const handleAvatarUpload = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const avatarUrl = URL.createObjectURL(file);
+      const updatedProfile = { ...userProfile, avatar: avatarUrl };
+      setUserProfile(updatedProfile);
+      persistAll(bannerData, colSpan, rowSpan, isOccupied, updatedProfile, currentPlan, uploadedBanners);
+    }
+  };
+
+  // 2. Upload Custom Font Sendiri
+  const handleFontUpload = async (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      try {
+        const fontName = `CustomFont_${Date.now()}`;
+        const buffer = await file.arrayBuffer();
+        const fontFace = new FontFace(fontName, buffer);
+        await fontFace.load();
+        document.fonts.add(fontFace);
+
+        const updatedProfile = { ...userProfile, customFontName: fontName };
+        setUserProfile(updatedProfile);
+        persistAll(bannerData, colSpan, rowSpan, isOccupied, updatedProfile, currentPlan, uploadedBanners);
+      } catch (err) {
+        console.error("Gagal load font:", err);
+      }
+    }
+  };
+
+  // 3. Upload Musik Sendiri (MP3)
   const handleMusicUpload = (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -203,16 +235,6 @@ export default function App() {
       }
     }
     setBannerData((prev) => ({ ...prev, isPlayingMusic: !prev.isPlayingMusic }));
-  };
-
-  // Upload Avatar Logo Profil Sendiri
-  const handleAvatarUpload = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      const newProfile = { ...userProfile, avatar: URL.createObjectURL(file) };
-      setUserProfile(newProfile);
-      persistAll(bannerData, colSpan, rowSpan, isOccupied, newProfile, currentPlan, uploadedBanners);
-    }
   };
 
   // Selesaikan Sewa / Simpan
@@ -256,7 +278,6 @@ export default function App() {
     }, 1100);
   };
 
-  // Klik Banner (Counter Analisis)
   const handleBannerClick = () => {
     if (bannerData.link) {
       setBannerData((prev) => {
@@ -269,7 +290,10 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#070b12] text-white flex flex-col items-center p-4 md:p-8 select-none font-sans relative overflow-x-hidden">
+    <div 
+      style={{ fontFamily: userProfile.customFontName ? userProfile.customFontName : 'inherit' }}
+      className="min-h-screen bg-[#070b12] text-white flex flex-col items-center p-4 md:p-8 select-none relative overflow-x-hidden"
+    >
       
       {/* Header Bar */}
       <header className="w-full max-w-md md:max-w-3xl lg:max-w-5xl flex items-center justify-between py-3 px-2 border-b border-white/5 relative z-30">
@@ -283,7 +307,6 @@ export default function App() {
         </button>
 
         <div className="flex items-center gap-2">
-          {/* Badge Plan Saat Ini */}
           <button
             onClick={() => { setActiveTab('subscription'); setIsMenuOpen(true); }}
             className={`px-3 py-1.5 text-[11px] font-bold rounded-full transition-all border active:scale-95 ${
@@ -338,7 +361,7 @@ export default function App() {
                 ✎
               </button>
 
-              {/* Gambar / Media Banner (Bisa Diklik Menuju Link) */}
+              {/* Gambar Banner */}
               <div 
                 onClick={handleBannerClick}
                 className="w-full flex-1 rounded-xl overflow-hidden bg-black/40 relative flex items-center justify-center cursor-pointer active:opacity-90 transition-opacity"
@@ -356,15 +379,15 @@ export default function App() {
                 )}
               </div>
 
-              {/* Bagian Bawah Banner: (Logo) Nama Profil + Pemutar Musik + Icon Medsos */}
+              {/* Bawah Banner: FOTO PROFIL + NAMA + MUSIK + MEDSOS */}
               <div className="w-full flex flex-col items-center justify-center pt-1.5 pb-0.5 px-1">
                 
-                {/* 1. Baris Identitas Profil User: (Logo) Nama Merek */}
+                {/* 1. Baris Identitas: Foto Profil + Nama */}
                 <div className="flex items-center justify-center gap-1.5 max-w-full">
                   <img 
                     src={userProfile.avatar} 
-                    alt="Logo" 
-                    className="w-4 h-4 rounded-full object-cover border border-white/20 shrink-0" 
+                    alt="Avatar Profile" 
+                    className="w-4 h-4 rounded-full object-cover border border-white/20 shadow-sm shrink-0" 
                   />
                   {isMotionSuper ? (
                     <span className="text-center font-extrabold text-[12px] md:text-sm tracking-wide bg-gradient-to-r from-emerald-400 via-violet-300 via-pink-400 to-emerald-400 bg-[length:250%_auto] animate-[shimmer_3s_linear_infinite] bg-clip-text text-transparent drop-shadow-[0_0_10px_rgba(167,139,250,0.4)] truncate">
@@ -377,11 +400,10 @@ export default function App() {
                   )}
                 </div>
 
-                {/* 2. Plugin Musik / Audio Sendiri (Di bawah nama & di atas logo medsos) */}
+                {/* 2. Plugin Musik Sendiri */}
                 <div 
                   onClick={togglePlayMusic}
                   className="mt-1 px-2.5 py-0.5 rounded-full bg-white/[0.05] border border-white/10 backdrop-blur-md flex items-center gap-1.5 cursor-pointer hover:bg-white/[0.09] active:scale-95 transition-all"
-                  title="Klik untuk putar / jeda audio"
                 >
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" className="text-emerald-400">
                     <path d="M9 18V5l12-2v13" />
@@ -398,7 +420,7 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* 3. Deretan Icon Medsos di Bawah Musik */}
+                {/* 3. Icon Medsos */}
                 {bannerData.socials && bannerData.socials.length > 0 && (
                   <div className="flex items-center justify-center gap-2 mt-1.5 flex-wrap">
                     {bannerData.socials.map((social, idx) => (
@@ -453,7 +475,7 @@ export default function App() {
             </div>
           )}
 
-          {/* Sisa Grid Slots Kosong (Total 100 slot, indeks dinamis) */}
+          {/* Sisa Grid Slots Kosong (Total 100 slot) */}
           {Array.from({ length: Math.max(0, 100 - (isOccupied ? totalSlotsUsed : 1)) }).map((_, i) => {
             const slotNumber = (isOccupied ? totalSlotsUsed : 1) + i + 1;
             return (
@@ -473,7 +495,7 @@ export default function App() {
         </div>
       </div>
 
-      {/* DRAWER MENU PANEL KONTROL */}
+      {/* DRAWER MENU */}
       {isMenuOpen && (
         <div className="fixed inset-0 z-50 flex">
           <div 
@@ -495,18 +517,17 @@ export default function App() {
                 </button>
               </div>
 
-              {/* Navigasi Tab */}
-              <div className="grid grid-cols-2 gap-1.5 p-1 bg-[#070b12]/90 rounded-2xl border border-white/5 backdrop-blur-md">
+              {/* Tab Atas HANYA 3: Slots, Langganan, Plugin ([Saya] Sudah Pindah ke Bawah) */}
+              <div className="grid grid-cols-3 gap-1.5 p-1 bg-[#070b12]/90 rounded-2xl border border-white/5 backdrop-blur-md">
                 {[
                   { key: 'slots', label: 'Slots' },
                   { key: 'subscription', label: 'Langganan' },
                   { key: 'plugin', label: 'Plugin' },
-                  { key: 'profile', label: 'Saya' },
                 ].map((item) => (
                   <button
                     key={item.key}
                     onClick={() => setActiveTab(item.key)}
-                    className={`py-2 px-3 rounded-xl text-[11px] font-semibold transition-all duration-300 active:scale-95 ${
+                    className={`py-2 px-2 rounded-xl text-[11px] font-semibold transition-all duration-300 active:scale-95 ${
                       activeTab === item.key 
                         ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 shadow-sm' 
                         : 'text-gray-400 hover:text-white'
@@ -517,7 +538,7 @@ export default function App() {
                 ))}
               </div>
 
-              {/* --- TAB 1: SLOTS --- */}
+              {/* TAB 1: SLOTS */}
               {activeTab === 'slots' && (
                 <div className="flex flex-col gap-3 text-left">
                   <div className="p-3.5 rounded-2xl bg-white/[0.03] border border-white/10 backdrop-blur-xl flex flex-col gap-1.5 shadow-sm">
@@ -534,12 +555,11 @@ export default function App() {
                 </div>
               )}
 
-              {/* --- TAB 2: LANGGANAN (3 TIER ASLI + GLASSMORPHISM) --- */}
+              {/* TAB 2: LANGGANAN */}
               {activeTab === 'subscription' && (
                 <div className="flex flex-col gap-3 text-left">
                   <span className="text-xs font-bold text-gray-300">Pilih Paket Langganan</span>
                   
-                  {/* 1. Motion Basic */}
                   <div 
                     onClick={() => { setCurrentPlan('Basic'); persistAll(bannerData, colSpan, rowSpan, isOccupied, userProfile, 'Basic', uploadedBanners); }}
                     className={`p-3.5 rounded-2xl cursor-pointer transition-all border backdrop-blur-xl ${
@@ -553,11 +573,10 @@ export default function App() {
                       {currentPlan === 'Basic' && <span className="text-[9px] px-2 py-0.5 rounded-full bg-white/20 text-white font-bold">AKTIF</span>}
                     </div>
                     <p className="text-[10px] text-gray-400 mt-1 leading-relaxed">
-                      Warna abu-abu gradasi putih halus + glassmorphism. Slot standar tanpa animasi ekstra.
+                      Warna abu-abu gradasi putih halus + glassmorphism.
                     </p>
                   </div>
 
-                  {/* 2. Motion Pro */}
                   <div 
                     onClick={() => { setCurrentPlan('Pro'); persistAll(bannerData, colSpan, rowSpan, isOccupied, userProfile, 'Pro', uploadedBanners); }}
                     className={`p-3.5 rounded-2xl cursor-pointer transition-all border backdrop-blur-xl ${
@@ -571,11 +590,10 @@ export default function App() {
                       {currentPlan === 'Pro' && <span className="text-[9px] px-2 py-0.5 rounded-full bg-violet-500/30 text-violet-300 font-bold">AKTIF</span>}
                     </div>
                     <p className="text-[10px] text-gray-400 mt-1 leading-relaxed">
-                      Warna ungu gradasi biru elektrik + glassmorphism neon border. Tampilan modern dan tajam.
+                      Warna ungu gradasi biru elektrik + glassmorphism neon border.
                     </p>
                   </div>
 
-                  {/* 3. Motion Super */}
                   <div 
                     onClick={() => { setCurrentPlan('Super'); persistAll(bannerData, colSpan, rowSpan, isOccupied, userProfile, 'Super', uploadedBanners); }}
                     className={`p-3.5 rounded-2xl cursor-pointer transition-all border backdrop-blur-xl ${
@@ -589,49 +607,29 @@ export default function App() {
                       {currentPlan === 'Super' && <span className="text-[9px] px-2 py-0.5 rounded-full bg-amber-500/30 text-amber-300 font-bold">AKTIF</span>}
                     </div>
                     <p className="text-[10px] text-gray-400 mt-1 leading-relaxed">
-                      Warna emas gradasi shimmer + full animasi rotasi bercahaya di icon medsos & teks bergerak.
+                      Warna emas shimmer + animasi rotasi neon glow icon & teks bergerak.
                     </p>
                   </div>
                 </div>
               )}
 
-              {/* --- TAB 3: PLUGIN (UPLOAD MUSIK SENDIRI) --- */}
+              {/* TAB 3: PLUGIN */}
               {activeTab === 'plugin' && (
                 <div className="flex flex-col gap-3 text-left">
                   <div className="p-3.5 rounded-2xl bg-white/[0.03] border border-white/10 backdrop-blur-xl flex flex-col gap-2.5">
-                    <span className="text-xs font-bold text-gray-200">Penyimpanan & Upload Musik</span>
-                    <p className="text-[10px] text-gray-400">
-                      Upload lagu favoritmu (.mp3/audio) untuk diputar pengunjung di bawah nama banner.
-                    </p>
-                    
-                    {/* Tombol Upload File Musik Lokal */}
-                    <label className="w-full py-2.5 px-3 rounded-xl bg-violet-600/20 hover:bg-violet-600/30 border border-violet-500/30 text-violet-300 text-xs font-semibold flex items-center justify-center gap-2 cursor-pointer active:scale-95 transition">
-                      <input type="file" accept="audio/*" onChange={handleMusicUpload} className="hidden" />
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
-                        <path d="M9 18V5l12-2v13" />
-                        <circle cx="6" cy="18" r="3" />
-                        <circle cx="18" cy="16" r="3" />
-                      </svg>
-                      <span>Upload File Musik Sendiri</span>
-                    </label>
-
-                    {/* Input Judul Lagu */}
-                    <div className="mt-1">
-                      <label className="text-[10px] text-gray-400 block mb-1">Judul Musik Terpasang</label>
-                      <input 
-                        type="text" 
-                        value={bannerData.musicTitle}
-                        onChange={(e) => {
-                          const updated = { ...bannerData, musicTitle: e.target.value };
-                          setBannerData(updated);
-                          persistAll(updated, colSpan, rowSpan, isOccupied, userProfile, currentPlan, uploadedBanners);
-                        }}
-                        className="w-full bg-[#070b12] border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-violet-500/50"
-                      />
-                    </div>
-
+                    <span className="text-xs font-bold text-gray-200">Plugin Audio Background</span>
+                    <input 
+                      type="text" 
+                      value={bannerData.musicTitle}
+                      onChange={(e) => {
+                        const updated = { ...bannerData, musicTitle: e.target.value };
+                        setBannerData(updated);
+                        persistAll(updated, colSpan, rowSpan, isOccupied, userProfile, currentPlan, uploadedBanners);
+                      }}
+                      className="w-full bg-[#070b12] border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-violet-500/50"
+                    />
                     <div className="flex items-center justify-between text-[11px] text-gray-400 pt-1">
-                      <span>Coba Putar</span>
+                      <span>Status Putar</span>
                       <button 
                         onClick={togglePlayMusic}
                         className="px-3 py-1 rounded-lg bg-white/10 text-emerald-400 font-semibold active:scale-95 transition"
@@ -643,22 +641,22 @@ export default function App() {
                 </div>
               )}
 
-              {/* --- TAB 4: SAYA (PROFILE USER SENDIRI & 5 FITUR) --- */}
+              {/* TAB 4: PANEL SAYA (DIBUKA KETIKA TOMBOL POJOK BAWAH DIKLIK) */}
               {activeTab === 'profile' && (
                 <div className="flex flex-col gap-3.5 text-left">
                   
-                  {/* 1. Atur Profil User Sendiri */}
+                  {/* 1. Atur Profil & Upload Avatar */}
                   <div className="p-3.5 rounded-2xl bg-white/[0.03] border border-white/10 backdrop-blur-xl flex flex-col gap-3">
-                    <span className="text-xs font-bold text-gray-200">1. Atur Profil Sendiri</span>
+                    <span className="text-xs font-bold text-gray-200">1. Foto Profil & Nama</span>
                     <div className="flex items-center gap-3">
                       <label className="relative cursor-pointer group shrink-0">
                         <input type="file" accept="image/*" onChange={handleAvatarUpload} className="hidden" />
                         <img 
                           src={userProfile.avatar} 
                           alt="Avatar" 
-                          className="w-12 h-12 rounded-2xl object-cover border border-white/20 group-hover:opacity-75 transition"
+                          className="w-12 h-12 rounded-2xl object-cover border border-white/20 group-hover:opacity-75 transition shadow-sm"
                         />
-                        <span className="absolute inset-0 flex items-center justify-center bg-black/40 rounded-2xl opacity-0 group-hover:opacity-100 text-[10px] text-white">
+                        <span className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-2xl opacity-0 group-hover:opacity-100 text-[9px] text-white font-semibold">
                           Ganti
                         </span>
                       </label>
@@ -678,16 +676,38 @@ export default function App() {
                     </div>
                   </div>
 
-                  {/* 2. Banner yang Telah Diupload & Ukurannya */}
+                  {/* 2. Upload Custom Font & Musik Sendiri */}
+                  <div className="p-3.5 rounded-2xl bg-white/[0.03] border border-white/10 backdrop-blur-xl flex flex-col gap-2.5">
+                    <span className="text-xs font-bold text-gray-200">2. Custom Upload (Font & Musik)</span>
+                    
+                    {/* Upload Font File */}
+                    <label className="w-full py-2 px-3 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 text-emerald-300 text-xs font-semibold flex items-center justify-center gap-2 cursor-pointer active:scale-95 transition">
+                      <input type="file" accept=".ttf,.otf,.woff,.woff2" onChange={handleFontUpload} className="hidden" />
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+                        <path d="M4 7V4h16v3M9 20h6M12 4v16" />
+                      </svg>
+                      <span>Upload Custom Font (.ttf/.otf)</span>
+                    </label>
+
+                    {/* Upload Musik File */}
+                    <label className="w-full py-2 px-3 rounded-xl bg-violet-600/15 hover:bg-violet-600/25 border border-violet-500/25 text-violet-300 text-xs font-semibold flex items-center justify-center gap-2 cursor-pointer active:scale-95 transition">
+                      <input type="file" accept="audio/*" onChange={handleMusicUpload} className="hidden" />
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+                        <path d="M9 18V5l12-2v13" />
+                        <circle cx="6" cy="18" r="3" />
+                        <circle cx="18" cy="16" r="3" />
+                      </svg>
+                      <span>Upload File Musik (.mp3)</span>
+                    </label>
+                  </div>
+
+                  {/* Riwayat Upload Banner */}
                   <div className="p-3.5 rounded-2xl bg-white/[0.03] border border-white/10 backdrop-blur-xl flex flex-col gap-2">
-                    <span className="text-xs font-bold text-gray-200">2. Riwayat Upload Banner</span>
-                    <div className="flex flex-col gap-1.5 max-h-28 overflow-y-auto">
+                    <span className="text-xs font-bold text-gray-200">Riwayat Banner</span>
+                    <div className="flex flex-col gap-1.5 max-h-24 overflow-y-auto">
                       {uploadedBanners.map((item) => (
                         <div key={item.id} className="p-2 rounded-xl bg-black/40 border border-white/5 flex items-center justify-between">
-                          <div className="flex flex-col">
-                            <span className="text-[11px] font-semibold text-gray-200">{item.name}</span>
-                            <span className="text-[9px] text-gray-400">{item.date}</span>
-                          </div>
+                          <span className="text-[11px] font-semibold text-gray-200 truncate">{item.name}</span>
                           <span className="px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-400 text-[9px] font-mono font-bold">
                             {item.size}
                           </span>
@@ -696,22 +716,9 @@ export default function App() {
                     </div>
                   </div>
 
-                  {/* 3. Status Langganan & Waktu Berakhir */}
-                  <div className="p-3.5 rounded-2xl bg-white/[0.03] border border-white/10 backdrop-blur-xl flex flex-col gap-1.5">
-                    <span className="text-xs font-bold text-gray-200">3. Status Langganan</span>
-                    <div className="flex items-center justify-between text-[11px] pt-1">
-                      <span className="text-gray-400">Paket Aktif:</span>
-                      <span className="font-bold text-amber-300">Motion {currentPlan}</span>
-                    </div>
-                    <div className="flex items-center justify-between text-[11px]">
-                      <span className="text-gray-400">Berakhir Pada:</span>
-                      <span className="font-mono text-emerald-400">{subscriptionExpiry}</span>
-                    </div>
-                  </div>
-
-                  {/* 4. Analisis Klik Banner */}
+                  {/* Analisis Banner */}
                   <div className="p-3.5 rounded-2xl bg-white/[0.03] border border-white/10 backdrop-blur-xl flex flex-col gap-2">
-                    <span className="text-xs font-bold text-gray-200">4. Analisis Performa Banner</span>
+                    <span className="text-xs font-bold text-gray-200">Analisis Performa</span>
                     <div className="grid grid-cols-2 gap-2">
                       <div className="p-2 rounded-xl bg-black/40 border border-white/5 flex flex-col">
                         <span className="text-[9px] text-gray-400">Total Klik</span>
@@ -724,14 +731,14 @@ export default function App() {
                     </div>
                   </div>
 
-                  {/* Tombol Reset Data */}
+                  {/* Reset */}
                   <button 
                     onClick={() => {
-                      localStorage.removeItem('promotion_slot_data_v2');
+                      localStorage.removeItem('promotion_slot_data_v3');
                       setIsOccupied(false);
                       setIsMenuOpen(false);
                     }}
-                    className="w-full py-2.5 rounded-2xl bg-rose-500/15 border border-rose-500/30 text-rose-300 text-xs font-semibold hover:bg-rose-500/20 active:scale-95 transition"
+                    className="w-full py-2 rounded-2xl bg-rose-500/15 border border-rose-500/30 text-rose-300 text-xs font-semibold hover:bg-rose-500/20 active:scale-95 transition"
                   >
                     Reset Slot Tersimpan
                   </button>
@@ -740,19 +747,26 @@ export default function App() {
 
             </div>
 
-            {/* FOOTER DRAWER: IDENTITAS SAYA (PROFILE USER SENDIRI) */}
+            {/* POJOK BAWAH: NAVIGASI [SAYA] (PENGGANTI amotionwebsite Community Dev) */}
             <div 
               onClick={() => setActiveTab('profile')}
-              className="pt-4 border-t border-white/10 flex items-center gap-3 cursor-pointer hover:bg-white/[0.02] p-1.5 rounded-2xl transition"
+              className={`pt-3 border-t border-white/10 flex items-center gap-3 cursor-pointer p-2 rounded-2xl transition-all ${
+                activeTab === 'profile' 
+                  ? 'bg-emerald-500/15 border border-emerald-500/30' 
+                  : 'hover:bg-white/[0.03] border border-transparent'
+              }`}
             >
-              <img 
-                src={userProfile.avatar} 
-                alt="Avatar" 
-                className="w-10 h-10 rounded-2xl object-cover border border-white/20 shadow-md shrink-0" 
-              />
+              <div className="relative shrink-0">
+                <img 
+                  src={userProfile.avatar} 
+                  alt="Avatar" 
+                  className="w-9 h-9 rounded-2xl object-cover border border-white/20 shadow-md" 
+                />
+                <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-400 rounded-full border-2 border-[#0c121e]" />
+              </div>
               <div className="flex flex-col text-left truncate">
-                <span className="text-xs font-bold text-gray-200 truncate">{userProfile.name}</span>
-                <span className="text-[10px] text-emerald-400 font-mono">Saya (Profil Aktif)</span>
+                <span className="text-xs font-bold text-gray-100 truncate">{userProfile.name}</span>
+                <span className="text-[10px] text-emerald-400 font-mono font-medium">[Saya] • Profil & Custom</span>
               </div>
             </div>
 
