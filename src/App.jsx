@@ -7,7 +7,7 @@ export default function App() {
 
   // State Drawer Menu Samping & Tab
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState('slots'); // 'slots' | 'subscription' | 'plugin' | 'profile'
+  const [activeTab, setActiveTab] = useState('slots');
 
   // State Ukuran Grid Slot
   const [colSpan, setColSpan] = useState(5);
@@ -22,13 +22,25 @@ export default function App() {
     customFontName: '',
   });
 
+  // State Edit Profil Sementara & Auto Save (5 Detik)
+  const [tempProfileName, setTempProfileName] = useState(userProfile.name);
+  const [tempAvatar, setTempAvatar] = useState(userProfile.avatar);
+  const [showSaveBtn, setShowSaveBtn] = useState(false);
+  const saveTimerRef = useRef(null);
+
+  // State Crop Foto Profil (Zoom & Rotate)
+  const [cropModalOpen, setCropModalOpen] = useState(false);
+  const [rawAvatarImage, setRawAvatarImage] = useState(null);
+  const [zoomLevel, setZoomLevel] = useState(1);
+  const [rotateDeg, setRotateDeg] = useState(0);
+
   // State Data Banner & Media
   const [isOccupied, setIsOccupied] = useState(true);
   const [bannerData, setBannerData] = useState({
     name: 'Anak Programmer Indonesia',
     image: null,
     link: 'https://linktujuankamu',
-    musicTitle: 'Lofi Vibes - API Chill',
+    musicTitle: 'iphone-circles',
     musicFile: null,
     isPlayingMusic: false,
     clicks: 142,
@@ -77,12 +89,16 @@ export default function App() {
 
   // Persistence Load LocalStorage
   useEffect(() => {
-    const saved = localStorage.getItem('promotion_slot_data_v3');
+    const saved = localStorage.getItem('promotion_slot_data_v5');
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
         if (parsed.bannerData) setBannerData(parsed.bannerData);
-        if (parsed.userProfile) setUserProfile(parsed.userProfile);
+        if (parsed.userProfile) {
+          setUserProfile(parsed.userProfile);
+          setTempProfileName(parsed.userProfile.name);
+          setTempAvatar(parsed.userProfile.avatar);
+        }
         if (parsed.colSpan) setColSpan(parsed.colSpan);
         if (parsed.rowSpan) setRowSpan(parsed.rowSpan);
         if (parsed.isOccupied !== undefined) setIsOccupied(parsed.isOccupied);
@@ -96,7 +112,7 @@ export default function App() {
 
   const persistAll = (updatedBanner, cols, rows, occupied, profile, plan, history) => {
     localStorage.setItem(
-      'promotion_slot_data_v3',
+      'promotion_slot_data_v5',
       JSON.stringify({
         bannerData: updatedBanner,
         colSpan: cols,
@@ -112,6 +128,27 @@ export default function App() {
   const totalSlotsUsed = colSpan * rowSpan;
   const totalPrice = totalSlotsUsed * 1000;
   const isMotionSuper = currentPlan === 'Super';
+
+  // Trigger Tombol Simpan Otomatis Hilang Setelah 5 Detik
+  const triggerAutoSaveTimer = () => {
+    setShowSaveBtn(true);
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => {
+      setShowSaveBtn(false);
+    }, 5000);
+  };
+
+  // Simpan Perubahan Profil
+  const handleSaveProfile = () => {
+    const updatedProfile = {
+      ...userProfile,
+      name: tempProfileName.trim() ? tempProfileName : userProfile.name,
+      avatar: tempAvatar,
+    };
+    setUserProfile(updatedProfile);
+    setShowSaveBtn(false);
+    persistAll(bannerData, colSpan, rowSpan, isOccupied, updatedProfile, currentPlan, uploadedBanners);
+  };
 
   // Handle Resize Gesture (Touch)
   const handleTouchStart = (e) => {
@@ -174,21 +211,33 @@ export default function App() {
     }
   };
 
-  // 1. Upload Foto Profil User
-  const handleAvatarUpload = (e) => {
+  // 1. Pilih Avatar -> Buka Modal Crop
+  const handleAvatarFileSelect = (e) => {
     const file = e.target.files[0];
-    if (file) {
-      const avatarUrl = URL.createObjectURL(file);
-      const updatedProfile = { ...userProfile, avatar: avatarUrl };
-      setUserProfile(updatedProfile);
-      persistAll(bannerData, colSpan, rowSpan, isOccupied, updatedProfile, currentPlan, uploadedBanners);
+    if (file && file.type.startsWith('image/')) {
+      setRawAvatarImage(URL.createObjectURL(file));
+      setZoomLevel(1);
+      setRotateDeg(0);
+      setCropModalOpen(true);
     }
   };
 
-  // 2. Upload Custom Font Sendiri
+  // Konfirmasi Crop & Putar Avatar
+  const handleConfirmCrop = () => {
+    setTempAvatar(rawAvatarImage);
+    setCropModalOpen(false);
+    triggerAutoSaveTimer();
+  };
+
+  // 2. Upload Custom Font (.ttf / .otf)
   const handleFontUpload = async (e) => {
     const file = e.target.files[0];
     if (file) {
+      const isFont = file.name.endsWith('.ttf') || file.name.endsWith('.otf');
+      if (!isFont) {
+        alert('File harus berformat .ttf atau .otf');
+        return;
+      }
       try {
         const fontName = `CustomFont_${Date.now()}`;
         const buffer = await file.arrayBuffer();
@@ -198,17 +247,23 @@ export default function App() {
 
         const updatedProfile = { ...userProfile, customFontName: fontName };
         setUserProfile(updatedProfile);
+        triggerAutoSaveTimer();
         persistAll(bannerData, colSpan, rowSpan, isOccupied, updatedProfile, currentPlan, uploadedBanners);
       } catch (err) {
-        console.error("Gagal load font:", err);
+        console.error('Gagal load font:', err);
       }
     }
   };
 
-  // 3. Upload Musik Sendiri (MP3)
+  // 3. Upload File Musik (.mp3)
   const handleMusicUpload = (e) => {
     const file = e.target.files[0];
     if (file) {
+      const isMp3 = file.name.endsWith('.mp3') || file.type.includes('audio');
+      if (!isMp3) {
+        alert('File harus berformat .mp3');
+        return;
+      }
       const audioUrl = URL.createObjectURL(file);
       const updated = {
         ...bannerData,
@@ -217,6 +272,7 @@ export default function App() {
         isPlayingMusic: false,
       };
       setBannerData(updated);
+      triggerAutoSaveTimer();
       persistAll(updated, colSpan, rowSpan, isOccupied, userProfile, currentPlan, uploadedBanners);
     }
   };
@@ -294,7 +350,6 @@ export default function App() {
       style={{ fontFamily: userProfile.customFontName ? userProfile.customFontName : 'inherit' }}
       className="min-h-screen bg-[#070b12] text-white flex flex-col items-center p-4 md:p-8 select-none relative overflow-x-hidden"
     >
-      
       {/* Header Bar */}
       <header className="w-full max-w-md md:max-w-3xl lg:max-w-5xl flex items-center justify-between py-3 px-2 border-b border-white/5 relative z-30">
         <button 
@@ -403,7 +458,7 @@ export default function App() {
                 {/* 2. Plugin Musik Sendiri */}
                 <div 
                   onClick={togglePlayMusic}
-                  className="mt-1 px-2.5 py-0.5 rounded-full bg-white/[0.05] border border-white/10 backdrop-blur-md flex items-center gap-1.5 cursor-pointer hover:bg-white/[0.09] active:scale-95 transition-all"
+                  className="mt-1 px-2.5 py-0.5 rounded-full bg-white/[0.05] border border-white/10 backdrop-blur-md flex items-center gap-1.5 cursor-pointer hover:bg-white/[0.09] active:scale-95 transition-all shadow-[0_4px_12px_rgba(0,0,0,0.2)]"
                 >
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" className="text-emerald-400">
                     <path d="M9 18V5l12-2v13" />
@@ -445,7 +500,7 @@ export default function App() {
                 )}
               </div>
 
-              {/* HANDLE RESIZE SUDUT MELENGKUNG IOS */}
+              {/* Handle Resize Sudut Melengkung iOS */}
               <div
                 onTouchStart={handleTouchStart}
                 onTouchMove={handleTouchMove}
@@ -475,7 +530,7 @@ export default function App() {
             </div>
           )}
 
-          {/* Sisa Grid Slots Kosong (Total 100 slot) */}
+          {/* Sisa Grid Slots Kosong (Total 100 Slot) */}
           {Array.from({ length: Math.max(0, 100 - (isOccupied ? totalSlotsUsed : 1)) }).map((_, i) => {
             const slotNumber = (isOccupied ? totalSlotsUsed : 1) + i + 1;
             return (
@@ -494,7 +549,6 @@ export default function App() {
 
         </div>
       </div>
-
       {/* DRAWER MENU */}
       {isMenuOpen && (
         <div className="fixed inset-0 z-50 flex">
@@ -517,7 +571,7 @@ export default function App() {
                 </button>
               </div>
 
-              {/* Tab Atas HANYA 3: Slots, Langganan, Plugin ([Saya] Sudah Pindah ke Bawah) */}
+              {/* Tab Atas: Slots, Langganan, Plugin */}
               <div className="grid grid-cols-3 gap-1.5 p-1 bg-[#070b12]/90 rounded-2xl border border-white/5 backdrop-blur-md">
                 {[
                   { key: 'slots', label: 'Slots' },
@@ -613,11 +667,19 @@ export default function App() {
                 </div>
               )}
 
-              {/* TAB 3: PLUGIN */}
+              {/* TAB 3: PLUGIN (AUDIO BACKGROUND + IKON KHUSUS GLASSMORPHISM) */}
               {activeTab === 'plugin' && (
                 <div className="flex flex-col gap-3 text-left">
-                  <div className="p-3.5 rounded-2xl bg-white/[0.03] border border-white/10 backdrop-blur-xl flex flex-col gap-2.5">
-                    <span className="text-xs font-bold text-gray-200">Plugin Audio Background</span>
+                  <div className="p-4 rounded-3xl bg-white/[0.03] border border-white/10 backdrop-blur-2xl shadow-[0_8px_32px_rgba(0,0,0,0.37)] flex flex-col gap-3.5 relative overflow-hidden group">
+                    <div className="absolute -top-10 -right-10 w-28 h-28 bg-emerald-500/10 rounded-full blur-2xl pointer-events-none" />
+
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-gray-200">Plugin Audio Background</span>
+                      <span className="text-[9px] px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 font-mono">
+                        Active
+                      </span>
+                    </div>
+
                     <input 
                       type="text" 
                       value={bannerData.musicTitle}
@@ -626,83 +688,132 @@ export default function App() {
                         setBannerData(updated);
                         persistAll(updated, colSpan, rowSpan, isOccupied, userProfile, currentPlan, uploadedBanners);
                       }}
-                      className="w-full bg-[#070b12] border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-violet-500/50"
+                      className="w-full bg-[#070b12]/90 border border-white/10 rounded-2xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-emerald-500/50 backdrop-blur-md shadow-inner"
                     />
-                    <div className="flex items-center justify-between text-[11px] text-gray-400 pt-1">
-                      <span>Status Putar</span>
+
+                    {/* Kontrol Putar dengan Ikon Khusus SVG (Bukan Emoji) */}
+                    <div className="flex items-center justify-between pt-1">
+                      <span className="text-xs text-gray-400">Status Putar</span>
+                      
                       <button 
                         onClick={togglePlayMusic}
-                        className="px-3 py-1 rounded-lg bg-white/10 text-emerald-400 font-semibold active:scale-95 transition"
+                        className={`flex items-center gap-2 px-3.5 py-2 rounded-2xl text-xs font-bold transition-all duration-300 border backdrop-blur-xl shadow-lg active:scale-95 ${
+                          bannerData.isPlayingMusic
+                            ? 'bg-amber-500/20 hover:bg-amber-500/30 border-amber-500/40 text-amber-300 shadow-[0_0_15px_rgba(245,158,11,0.25)]'
+                            : 'bg-emerald-500/20 hover:bg-emerald-500/30 border-emerald-500/40 text-emerald-300 shadow-[0_0_15px_rgba(16,185,129,0.25)]'
+                        }`}
                       >
-                        {bannerData.isPlayingMusic ? 'Jeda ⏸' : 'Putar ▶'}
+                        {bannerData.isPlayingMusic ? (
+                          <>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                              <rect x="6" y="4" width="4" height="16" rx="2" />
+                              <rect x="14" y="4" width="4" height="16" rx="2" />
+                            </svg>
+                            <span>Jeda</span>
+                          </>
+                        ) : (
+                          <>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                              <path d="M5 4.887a1.5 1.5 0 0 1 2.302-1.272l12.148 7.113a1.5 1.5 0 0 1 0 2.544L7.302 20.385A1.5 1.5 0 0 1 5 19.113V4.887z" />
+                            </svg>
+                            <span>Putar</span>
+                          </>
+                        )}
                       </button>
                     </div>
+
                   </div>
                 </div>
               )}
 
-              {/* TAB 4: PANEL SAYA (DIBUKA KETIKA TOMBOL POJOK BAWAH DIKLIK) */}
+              {/* TAB 4: PANEL SAYA */}
               {activeTab === 'profile' && (
                 <div className="flex flex-col gap-3.5 text-left">
                   
-                  {/* 1. Atur Profil & Upload Avatar */}
-                  <div className="p-3.5 rounded-2xl bg-white/[0.03] border border-white/10 backdrop-blur-xl flex flex-col gap-3">
+                  {/* 1. Atur Profil & Upload Avatar + TOMBOL SIMPAN OTOMATIS (5 DETIK) */}
+                  <div className="p-3.5 rounded-3xl bg-white/[0.03] border border-white/10 backdrop-blur-2xl shadow-[0_8px_32px_rgba(0,0,0,0.37)] flex flex-col gap-3">
                     <span className="text-xs font-bold text-gray-200">1. Foto Profil & Nama</span>
+                    
                     <div className="flex items-center gap-3">
                       <label className="relative cursor-pointer group shrink-0">
-                        <input type="file" accept="image/*" onChange={handleAvatarUpload} className="hidden" />
-                        <img 
-                          src={userProfile.avatar} 
-                          alt="Avatar" 
-                          className="w-12 h-12 rounded-2xl object-cover border border-white/20 group-hover:opacity-75 transition shadow-sm"
-                        />
+                        <input type="file" accept="image/png,image/jpeg,image/webp" onChange={handleAvatarFileSelect} className="hidden" />
+                        <div className="w-12 h-12 rounded-2xl overflow-hidden border border-white/20 shadow-sm relative">
+                          <img 
+                            src={tempAvatar} 
+                            alt="Avatar" 
+                            style={{ transform: `scale(${zoomLevel}) rotate(${rotateDeg}deg)` }}
+                            className="w-full h-full object-cover transition-transform duration-200"
+                          />
+                        </div>
                         <span className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-2xl opacity-0 group-hover:opacity-100 text-[9px] text-white font-semibold">
-                          Ganti
+                          Ubah
                         </span>
                       </label>
                       <div className="flex-1">
                         <label className="text-[10px] text-gray-400 block mb-1">Nama Brand / Profil</label>
                         <input 
                           type="text" 
-                          value={userProfile.name}
+                          value={tempProfileName}
                           onChange={(e) => {
-                            const newProfile = { ...userProfile, name: e.target.value };
-                            setUserProfile(newProfile);
-                            persistAll(bannerData, colSpan, rowSpan, isOccupied, newProfile, currentPlan, uploadedBanners);
+                            setTempProfileName(e.target.value);
+                            triggerAutoSaveTimer();
                           }}
-                          className="w-full bg-[#070b12] border border-white/10 rounded-xl px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500/50"
+                          className="w-full bg-[#070b12]/90 border border-white/10 rounded-xl px-2.5 py-2 text-xs text-white focus:outline-none focus:border-emerald-500/50 backdrop-blur-md"
                         />
                       </div>
                     </div>
+
+                    {/* Tombol Simpan Otomatis Muncul & Hilang 5 Detik */}
+                    <div className={`transition-all duration-500 overflow-hidden ${showSaveBtn ? 'max-h-14 opacity-100' : 'max-h-0 opacity-0 pointer-events-none'}`}>
+                      <button
+                        onClick={handleSaveProfile}
+                        className="w-full py-2.5 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-black text-xs font-bold flex items-center justify-center gap-2 shadow-[0_4px_16px_rgba(16,185,129,0.3)] active:scale-95 transition"
+                      >
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+                          <polyline points="17 21 17 13 7 13 7 21" />
+                          <polyline points="7 3 7 8 15 8" />
+                        </svg>
+                        <span>Simpan Perubahan</span>
+                      </button>
+                    </div>
                   </div>
 
-                  {/* 2. Upload Custom Font & Musik Sendiri */}
-                  <div className="p-3.5 rounded-2xl bg-white/[0.03] border border-white/10 backdrop-blur-xl flex flex-col gap-2.5">
+                  {/* 2. Custom Upload (Font & Musik) dengan Ikon Upload di Samping */}
+                  <div className="p-3.5 rounded-3xl bg-white/[0.03] border border-white/10 backdrop-blur-2xl shadow-[0_8px_32px_rgba(0,0,0,0.37)] flex flex-col gap-2.5">
                     <span className="text-xs font-bold text-gray-200">2. Custom Upload (Font & Musik)</span>
                     
-                    {/* Upload Font File */}
-                    <label className="w-full py-2 px-3 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 text-emerald-300 text-xs font-semibold flex items-center justify-center gap-2 cursor-pointer active:scale-95 transition">
-                      <input type="file" accept=".ttf,.otf,.woff,.woff2" onChange={handleFontUpload} className="hidden" />
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
-                        <path d="M4 7V4h16v3M9 20h6M12 4v16" />
+                    {/* Upload Font (.ttf/.otf) */}
+                    <label className="w-full py-2.5 px-3.5 rounded-2xl bg-emerald-500/10 hover:bg-emerald-500/15 border border-emerald-500/25 text-emerald-300 text-xs font-semibold flex items-center justify-between cursor-pointer active:scale-95 transition backdrop-blur-md">
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold">T</span>
+                        <span>Upload Font (.ttf/.otf)</span>
+                      </div>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="text-emerald-400">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                        <polyline points="17 8 12 3 7 8" />
+                        <line x1="12" y1="3" x2="12" y2="15" />
                       </svg>
-                      <span>Upload Custom Font (.ttf/.otf)</span>
+                      <input type="file" accept=".ttf,.otf" onChange={handleFontUpload} className="hidden" />
                     </label>
 
-                    {/* Upload Musik File */}
-                    <label className="w-full py-2 px-3 rounded-xl bg-violet-600/15 hover:bg-violet-600/25 border border-violet-500/25 text-violet-300 text-xs font-semibold flex items-center justify-center gap-2 cursor-pointer active:scale-95 transition">
-                      <input type="file" accept="audio/*" onChange={handleMusicUpload} className="hidden" />
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
-                        <path d="M9 18V5l12-2v13" />
-                        <circle cx="6" cy="18" r="3" />
-                        <circle cx="18" cy="16" r="3" />
+                    {/* Upload Music (.mp3) */}
+                    <label className="w-full py-2.5 px-3.5 rounded-2xl bg-violet-600/15 hover:bg-violet-600/20 border border-violet-500/25 text-violet-300 text-xs font-semibold flex items-center justify-between cursor-pointer active:scale-95 transition backdrop-blur-md">
+                      <div className="flex items-center gap-2">
+                        <span>♫</span>
+                        <span>Upload Music (.mp3)</span>
+                      </div>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="text-violet-400">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                        <polyline points="17 8 12 3 7 8" />
+                        <line x1="12" y1="3" x2="12" y2="15" />
                       </svg>
-                      <span>Upload File Musik (.mp3)</span>
+                      <input type="file" accept=".mp3,audio/mpeg" onChange={handleMusicUpload} className="hidden" />
                     </label>
                   </div>
 
                   {/* Riwayat Upload Banner */}
-                  <div className="p-3.5 rounded-2xl bg-white/[0.03] border border-white/10 backdrop-blur-xl flex flex-col gap-2">
+                  <div className="p-3.5 rounded-3xl bg-white/[0.03] border border-white/10 backdrop-blur-2xl shadow-[0_8px_32px_rgba(0,0,0,0.37)] flex flex-col gap-2">
                     <span className="text-xs font-bold text-gray-200">Riwayat Banner</span>
                     <div className="flex flex-col gap-1.5 max-h-24 overflow-y-auto">
                       {uploadedBanners.map((item) => (
@@ -717,7 +828,7 @@ export default function App() {
                   </div>
 
                   {/* Analisis Banner */}
-                  <div className="p-3.5 rounded-2xl bg-white/[0.03] border border-white/10 backdrop-blur-xl flex flex-col gap-2">
+                  <div className="p-3.5 rounded-3xl bg-white/[0.03] border border-white/10 backdrop-blur-2xl shadow-[0_8px_32px_rgba(0,0,0,0.37)] flex flex-col gap-2">
                     <span className="text-xs font-bold text-gray-200">Analisis Performa</span>
                     <div className="grid grid-cols-2 gap-2">
                       <div className="p-2 rounded-xl bg-black/40 border border-white/5 flex flex-col">
@@ -734,11 +845,11 @@ export default function App() {
                   {/* Reset */}
                   <button 
                     onClick={() => {
-                      localStorage.removeItem('promotion_slot_data_v3');
+                      localStorage.removeItem('promotion_slot_data_v5');
                       setIsOccupied(false);
                       setIsMenuOpen(false);
                     }}
-                    className="w-full py-2 rounded-2xl bg-rose-500/15 border border-rose-500/30 text-rose-300 text-xs font-semibold hover:bg-rose-500/20 active:scale-95 transition"
+                    className="w-full py-2.5 rounded-2xl bg-rose-500/15 border border-rose-500/30 text-rose-300 text-xs font-semibold hover:bg-rose-500/20 active:scale-95 transition backdrop-blur-md"
                   >
                     Reset Slot Tersimpan
                   </button>
@@ -747,12 +858,12 @@ export default function App() {
 
             </div>
 
-            {/* POJOK BAWAH: NAVIGASI [SAYA] (PENGGANTI amotionwebsite Community Dev) */}
+            {/* POJOK BAWAH: NAVIGASI [SAYA] */}
             <div 
               onClick={() => setActiveTab('profile')}
-              className={`pt-3 border-t border-white/10 flex items-center gap-3 cursor-pointer p-2 rounded-2xl transition-all ${
+              className={`pt-3 border-t border-white/10 flex items-center gap-3 cursor-pointer p-2.5 rounded-2xl transition-all backdrop-blur-xl ${
                 activeTab === 'profile' 
-                  ? 'bg-emerald-500/15 border border-emerald-500/30' 
+                  ? 'bg-emerald-500/15 border border-emerald-500/30 shadow-[0_0_15px_rgba(16,185,129,0.15)]' 
                   : 'hover:bg-white/[0.03] border border-transparent'
               }`}
             >
@@ -770,6 +881,74 @@ export default function App() {
               </div>
             </div>
 
+          </div>
+        </div>
+      )}
+
+      {/* MODAL CROP & ROTATE AVATAR */}
+      {cropModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fadeIn">
+          <div className="w-full max-w-xs rounded-[32px] bg-[#111722]/95 border border-white/10 p-5 shadow-2xl flex flex-col items-center gap-4 text-center">
+            <span className="text-sm font-bold text-white">Sesuaikan Foto Profil</span>
+            
+            <div className="w-40 h-40 rounded-full border-2 border-emerald-500/60 overflow-hidden relative flex items-center justify-center bg-black/50 shadow-inner">
+              <img
+                src={rawAvatarImage}
+                alt="Crop Preview"
+                style={{ transform: `scale(${zoomLevel}) rotate(${rotateDeg}deg)` }}
+                className="w-full h-full object-cover transition-transform duration-100"
+              />
+            </div>
+
+            <div className="w-full flex items-center gap-2 px-2">
+              <span className="text-[10px] text-gray-400">Zoom</span>
+              <input
+                type="range"
+                min="1"
+                max="2.5"
+                step="0.05"
+                value={zoomLevel}
+                onChange={(e) => setZoomLevel(parseFloat(e.target.value))}
+                className="w-full accent-emerald-500 h-1 bg-white/10 rounded-lg cursor-pointer"
+              />
+            </div>
+
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setRotateDeg((prev) => prev - 90)}
+                className="px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 text-xs text-gray-300 hover:text-white active:scale-95 transition"
+              >
+                Putar ↺
+              </button>
+              <button
+                type="button"
+                onClick={() => setRotateDeg((prev) => prev + 90)}
+                className="px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 text-xs text-gray-300 hover:text-white active:scale-95 transition"
+              >
+                Putar ↻
+              </button>
+            </div>
+
+            <div className="flex items-center gap-2 w-full mt-2">
+              <button
+                type="button"
+                onClick={() => setCropModalOpen(false)}
+                className="flex-1 py-2 rounded-xl bg-white/5 text-gray-300 text-xs font-semibold active:scale-95 transition"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmCrop}
+                className="flex-1 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black text-xs font-bold flex items-center justify-center gap-1 active:scale-95 transition shadow-lg"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+                <span>Terapkan</span>
+              </button>
+            </div>
           </div>
         </div>
       )}
