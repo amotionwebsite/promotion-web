@@ -1,26 +1,37 @@
-import React, { useState, useRef, useEffect } from 'react';
+  import React, { useState, useRef, useEffect } from 'react';
 
 export default function App() {
-  // State Mode Motion Super
-  const [isMotionSuper, setIsMotionSuper] = useState(true);
+  // State Langganan Aktif: 'Basic' | 'Pro' | 'Super'
+  const [currentPlan, setCurrentPlan] = useState('Super');
+  const [subscriptionExpiry, setSubscriptionExpiry] = useState('12 Des 2026');
 
-  // State Drawer Menu Samping & Tab Aktif
+  // State Drawer Menu Samping & Tab
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState('slots');
+  const [activeTab, setActiveTab] = useState('slots'); // 'slots' | 'subscription' | 'plugin' | 'profile'
 
   // State Ukuran Grid Slot
   const [colSpan, setColSpan] = useState(2);
   const [rowSpan, setRowSpan] = useState(2);
   const [selectedRatio, setSelectedRatio] = useState('1:1');
 
-  // State Slot & Data
+  // State User Profile ("Saya")
+  const [userProfile, setUserProfile] = useState({
+    name: 'Anak Programmer Indonesia',
+    handle: '@anakprogrammer',
+    avatar: 'https://cdn-icons-png.flaticon.com/512/3670/3670157.png',
+  });
+
+  // State Data Banner & Media
   const [isOccupied, setIsOccupied] = useState(false);
   const [bannerData, setBannerData] = useState({
-    name: '',
+    name: 'Anak Programmer Indonesia',
     image: null,
-    link: '',
+    link: 'https://linktujuankamu',
     musicTitle: 'Lofi Vibes - API Chill',
+    musicFile: null,
     isPlayingMusic: false,
+    clicks: 142,
+    views: 1890,
     socials: [
       {
         name: 'TikTok',
@@ -35,7 +46,17 @@ export default function App() {
     ],
   });
 
-  // State Modal Form
+  // State Riwayat Upload Banner
+  const [uploadedBanners, setUploadedBanners] = useState([
+    {
+      id: 1,
+      name: 'Anak Programmer Indonesia',
+      size: '5x5 (25 Slot)',
+      date: '05 Nov 2026',
+    },
+  ]);
+
+  // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [inputName, setInputName] = useState('');
   const [inputImage, setInputImage] = useState(null);
@@ -43,43 +64,55 @@ export default function App() {
   const [customIcon, setCustomIcon] = useState(null);
   const [customIconUrl, setCustomIconUrl] = useState('');
 
-  // State Feedback & Payment
+  // Upload Progress & Payment Simulation
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isPaymentOpen, setIsPaymentOpen] = useState(false);
   const [isProcessingPay, setIsProcessingPay] = useState(false);
 
-  // Drag Tracking
+  // Audio Ref untuk pemutar musik
+  const audioRef = useRef(null);
   const dragStartRef = useRef(null);
 
+  // Persistence Load LocalStorage
   useEffect(() => {
-    const savedSlot = localStorage.getItem('promotion_slot_data');
-    if (savedSlot) {
+    const saved = localStorage.getItem('promotion_slot_data_v2');
+    if (saved) {
       try {
-        const parsed = JSON.parse(savedSlot);
-        setBannerData(parsed.bannerData || bannerData);
-        setColSpan(parsed.colSpan || 2);
-        setRowSpan(parsed.rowSpan || 2);
-        setIsOccupied(parsed.isOccupied || false);
-      } catch (e) {
-        console.error(e);
+        const parsed = JSON.parse(saved);
+        if (parsed.bannerData) setBannerData(parsed.bannerData);
+        if (parsed.userProfile) setUserProfile(parsed.userProfile);
+        if (parsed.colSpan) setColSpan(parsed.colSpan);
+        if (parsed.rowSpan) setRowSpan(parsed.rowSpan);
+        if (parsed.isOccupied !== undefined) setIsOccupied(parsed.isOccupied);
+        if (parsed.currentPlan) setCurrentPlan(parsed.currentPlan);
+        if (parsed.uploadedBanners) setUploadedBanners(parsed.uploadedBanners);
+      } catch (err) {
+        console.error(err);
       }
     }
   }, []);
 
-  const persistSlot = (data, cols, rows, occupied) => {
-    localStorage.setItem('promotion_slot_data', JSON.stringify({
-      bannerData: data,
-      colSpan: cols,
-      rowSpan: rows,
-      isOccupied: occupied,
-    }));
+  const persistAll = (updatedBanner, cols, rows, occupied, profile, plan, history) => {
+    localStorage.setItem(
+      'promotion_slot_data_v2',
+      JSON.stringify({
+        bannerData: updatedBanner,
+        colSpan: cols,
+        rowSpan: rows,
+        isOccupied: occupied,
+        userProfile: profile,
+        currentPlan: plan,
+        uploadedBanners: history,
+      })
+    );
   };
 
   const totalSlotsUsed = colSpan * rowSpan;
   const totalPrice = totalSlotsUsed * 1000;
+  const isMotionSuper = currentPlan === 'Super';
 
-  // Handle Resize Touch / Drag Corner
+  // Handle Resize Gesture (Touch)
   const handleTouchStart = (e) => {
     e.stopPropagation();
     const touch = e.touches[0];
@@ -104,26 +137,18 @@ export default function App() {
 
   const handleTouchEnd = () => {
     dragStartRef.current = null;
-    persistSlot(bannerData, colSpan, rowSpan, isOccupied);
+    persistAll(bannerData, colSpan, rowSpan, isOccupied, userProfile, currentPlan, uploadedBanners);
   };
 
   const applyAspectRatio = (ratio) => {
     setSelectedRatio(ratio);
-    if (ratio === '1:1') {
-      setColSpan(2);
-      setRowSpan(2);
-    } else if (ratio === '9:16') {
-      setColSpan(2);
-      setRowSpan(4);
-    } else if (ratio === '16:9') {
-      setColSpan(4);
-      setRowSpan(2);
-    } else if (ratio === '4:5') {
-      setColSpan(2);
-      setRowSpan(3);
-    }
+    if (ratio === '1:1') { setColSpan(2); setRowSpan(2); }
+    else if (ratio === '9:16') { setColSpan(2); setRowSpan(4); }
+    else if (ratio === '16:9') { setColSpan(4); setRowSpan(2); }
+    else if (ratio === '4:5') { setColSpan(2); setRowSpan(3); }
   };
 
+  // Upload Media Banner
   const handleBannerUpload = (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -148,13 +173,49 @@ export default function App() {
     }
   };
 
-  const handleCustomIconUpload = (e) => {
+  // Upload Musik Sendiri (MP3)
+  const handleMusicUpload = (e) => {
     const file = e.target.files[0];
     if (file) {
-      setCustomIcon(URL.createObjectURL(file));
+      const audioUrl = URL.createObjectURL(file);
+      const updated = {
+        ...bannerData,
+        musicTitle: file.name.replace(/\.[^/.]+$/, ''),
+        musicFile: audioUrl,
+        isPlayingMusic: false,
+      };
+      setBannerData(updated);
+      persistAll(updated, colSpan, rowSpan, isOccupied, userProfile, currentPlan, uploadedBanners);
     }
   };
 
+  // Toggle Audio Play/Pause
+  const togglePlayMusic = () => {
+    if (bannerData.musicFile) {
+      if (!bannerData.isPlayingMusic) {
+        audioRef.current = new Audio(bannerData.musicFile);
+        audioRef.current.play();
+        audioRef.current.onended = () => {
+          setBannerData((prev) => ({ ...prev, isPlayingMusic: false }));
+        };
+      } else {
+        if (audioRef.current) audioRef.current.pause();
+      }
+    }
+    setBannerData((prev) => ({ ...prev, isPlayingMusic: !prev.isPlayingMusic }));
+  };
+
+  // Upload Avatar Logo Profil Sendiri
+  const handleAvatarUpload = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const newProfile = { ...userProfile, avatar: URL.createObjectURL(file) };
+      setUserProfile(newProfile);
+      persistAll(bannerData, colSpan, rowSpan, isOccupied, newProfile, currentPlan, uploadedBanners);
+    }
+  };
+
+  // Selesaikan Sewa / Simpan
   const handleConfirmPayment = () => {
     setIsProcessingPay(true);
     setTimeout(() => {
@@ -167,21 +228,44 @@ export default function App() {
         });
       }
 
-      const updatedData = {
+      const bannerTitle = inputName.trim() ? inputName : userProfile.name;
+      const updatedBanner = {
         ...bannerData,
-        name: inputName.trim() ? inputName : 'Anak Programmer Indonesia',
-        image: inputImage,
+        name: bannerTitle,
+        image: inputImage || bannerData.image,
         link: inputLink.trim() ? inputLink : 'https://linktujuankamu',
         socials: updatedSocials,
       };
 
-      setBannerData(updatedData);
+      const newHistoryItem = {
+        id: Date.now(),
+        name: bannerTitle,
+        size: `${colSpan}x${rowSpan} (${totalSlotsUsed} Slot)`,
+        date: 'Hari ini',
+      };
+      const updatedHistory = [newHistoryItem, ...uploadedBanners];
+
+      setBannerData(updatedBanner);
+      setUploadedBanners(updatedHistory);
       setIsOccupied(true);
       setIsProcessingPay(false);
       setIsPaymentOpen(false);
       setIsModalOpen(false);
-      persistSlot(updatedData, colSpan, rowSpan, true);
-    }, 1200);
+
+      persistAll(updatedBanner, colSpan, rowSpan, true, userProfile, currentPlan, updatedHistory);
+    }, 1100);
+  };
+
+  // Klik Banner (Counter Analisis)
+  const handleBannerClick = () => {
+    if (bannerData.link) {
+      setBannerData((prev) => {
+        const next = { ...prev, clicks: prev.clicks + 1 };
+        persistAll(next, colSpan, rowSpan, isOccupied, userProfile, currentPlan, uploadedBanners);
+        return next;
+      });
+      window.open(bannerData.link, '_blank');
+    }
   };
 
   return (
@@ -191,7 +275,7 @@ export default function App() {
       <header className="w-full max-w-md md:max-w-3xl lg:max-w-5xl flex items-center justify-between py-3 px-2 border-b border-white/5 relative z-30">
         <button 
           onClick={() => setIsMenuOpen(true)}
-          className="w-10 h-10 rounded-2xl bg-[#0e1622]/80 border border-white/10 flex items-center justify-center text-gray-300 hover:text-white hover:border-emerald-500/40 active:scale-90 transition-all duration-300 shadow-sm"
+          className="w-10 h-10 rounded-2xl bg-[#0e1622]/80 backdrop-blur-xl border border-white/10 flex items-center justify-center text-gray-300 hover:text-white hover:border-emerald-500/40 active:scale-90 transition-all shadow-sm"
         >
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
             <path d="M4 7h16M4 12h16M4 17h16" />
@@ -199,15 +283,18 @@ export default function App() {
         </button>
 
         <div className="flex items-center gap-2">
+          {/* Badge Plan Saat Ini */}
           <button
-            onClick={() => setIsMotionSuper(!isMotionSuper)}
-            className={`px-3 py-1.5 text-[11px] font-bold rounded-full transition-all duration-300 border active:scale-95 ${
-              isMotionSuper
+            onClick={() => { setActiveTab('subscription'); setIsMenuOpen(true); }}
+            className={`px-3 py-1.5 text-[11px] font-bold rounded-full transition-all border active:scale-95 ${
+              currentPlan === 'Super'
                 ? 'bg-amber-500/10 border-amber-500/40 text-amber-300 shadow-[0_0_14px_rgba(245,158,11,0.3)]'
-                : 'bg-white/5 border-white/10 text-gray-400'
+                : currentPlan === 'Pro'
+                ? 'bg-violet-500/15 border-violet-500/40 text-violet-300 shadow-[0_0_14px_rgba(139,92,246,0.3)]'
+                : 'bg-white/5 border-white/10 text-gray-300'
             }`}
           >
-            MOTION SUPER
+            MOTION {currentPlan.toUpperCase()}
           </button>
           <span className="px-3 py-1.5 text-[11px] font-semibold rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400">
             Slot {isOccupied ? totalSlotsUsed : '0'}/100
@@ -225,23 +312,25 @@ export default function App() {
         </p>
       </div>
 
-      {/* Grid Canvas Wrapper */}
-      <div className="w-full max-w-md md:max-w-3xl lg:max-w-5xl bg-[#0c121d]/70 border border-white/5 rounded-3xl p-3 md:p-5 shadow-2xl backdrop-blur-md relative">
+      {/* Grid Canvas Wrapper Melebar Responsif */}
+      <div className="w-full max-w-md md:max-w-3xl lg:max-w-5xl bg-[#0c121d]/70 border border-white/5 rounded-3xl p-3 md:p-5 shadow-2xl backdrop-blur-2xl relative">
         <div className="grid grid-cols-5 md:grid-cols-8 lg:grid-cols-10 gap-2 md:gap-3 auto-rows-[64px] md:auto-rows-[76px] relative">
           
-          {/* Banner Utama */}
+          {/* BANNER UTAMA */}
           {isOccupied ? (
             <div
               style={{
                 gridColumn: `span ${colSpan}`,
                 gridRow: `span ${rowSpan}`,
               }}
-              className="relative rounded-2xl p-1.5 flex flex-col justify-between overflow-visible transition-all duration-300 border border-emerald-500/40 bg-gradient-to-br from-[#121c2b] to-[#0a111a] shadow-[0_4px_24px_rgba(0,0,0,0.5)] group"
+              className="relative rounded-2xl p-1.5 flex flex-col justify-between overflow-visible transition-all duration-300 border border-emerald-500/40 bg-gradient-to-br from-[#121c2b]/90 to-[#0a111a]/90 backdrop-blur-xl shadow-[0_4px_24px_rgba(0,0,0,0.5)] group"
             >
+              {/* Badge Indikator Grid */}
               <span className="absolute top-2 left-2 z-20 px-1.5 py-0.5 rounded-md bg-black/60 backdrop-blur-md border border-white/10 text-[9px] font-mono text-emerald-400">
                 {colSpan}x{rowSpan} ({totalSlotsUsed} Slot)
               </span>
 
+              {/* Tombol Edit Isi Banner */}
               <button
                 onClick={() => setIsModalOpen(true)}
                 className="absolute top-2 right-2 z-20 w-6 h-6 rounded-full bg-white/10 hover:bg-white/20 active:scale-90 flex items-center justify-center text-gray-200 text-xs border border-white/10 transition-transform duration-200"
@@ -249,7 +338,11 @@ export default function App() {
                 ✎
               </button>
 
-              <div className="w-full flex-1 rounded-xl overflow-hidden bg-black/40 relative flex items-center justify-center">
+              {/* Gambar / Media Banner (Bisa Diklik Menuju Link) */}
+              <div 
+                onClick={handleBannerClick}
+                className="w-full flex-1 rounded-xl overflow-hidden bg-black/40 relative flex items-center justify-center cursor-pointer active:opacity-90 transition-opacity"
+              >
                 {bannerData.image ? (
                   <img
                     src={bannerData.image}
@@ -263,31 +356,49 @@ export default function App() {
                 )}
               </div>
 
+              {/* Bagian Bawah Banner: (Logo) Nama Profil + Pemutar Musik + Icon Medsos */}
               <div className="w-full flex flex-col items-center justify-center pt-1.5 pb-0.5 px-1">
-                {isMotionSuper ? (
-                  <span className="text-center font-extrabold text-[12px] md:text-sm tracking-wide bg-gradient-to-r from-emerald-400 via-violet-300 via-pink-400 to-emerald-400 bg-[length:250%_auto] animate-[shimmer_3s_linear_infinite] bg-clip-text text-transparent drop-shadow-[0_0_10px_rgba(167,139,250,0.4)] truncate max-w-full">
-                    {bannerData.name}
-                  </span>
-                ) : (
-                  <span className="text-center font-bold text-[12px] md:text-sm text-gray-200 tracking-wide truncate max-w-full">
-                    {bannerData.name}
-                  </span>
-                )}
+                
+                {/* 1. Baris Identitas Profil User: (Logo) Nama Merek */}
+                <div className="flex items-center justify-center gap-1.5 max-w-full">
+                  <img 
+                    src={userProfile.avatar} 
+                    alt="Logo" 
+                    className="w-4 h-4 rounded-full object-cover border border-white/20 shrink-0" 
+                  />
+                  {isMotionSuper ? (
+                    <span className="text-center font-extrabold text-[12px] md:text-sm tracking-wide bg-gradient-to-r from-emerald-400 via-violet-300 via-pink-400 to-emerald-400 bg-[length:250%_auto] animate-[shimmer_3s_linear_infinite] bg-clip-text text-transparent drop-shadow-[0_0_10px_rgba(167,139,250,0.4)] truncate">
+                      {bannerData.name}
+                    </span>
+                  ) : (
+                    <span className="text-center font-bold text-[12px] md:text-sm text-gray-200 tracking-wide truncate">
+                      {bannerData.name}
+                    </span>
+                  )}
+                </div>
 
+                {/* 2. Plugin Musik / Audio Sendiri (Di bawah nama & di atas logo medsos) */}
                 <div 
-                  onClick={() => setBannerData(prev => ({ ...prev, isPlayingMusic: !prev.isPlayingMusic }))}
-                  className="mt-1 px-2.5 py-0.5 rounded-full bg-white/[0.04] border border-white/10 flex items-center gap-1.5 cursor-pointer hover:bg-white/[0.08] active:scale-95 transition-all"
+                  onClick={togglePlayMusic}
+                  className="mt-1 px-2.5 py-0.5 rounded-full bg-white/[0.05] border border-white/10 backdrop-blur-md flex items-center gap-1.5 cursor-pointer hover:bg-white/[0.09] active:scale-95 transition-all"
+                  title="Klik untuk putar / jeda audio"
                 >
-                  <div className="flex items-end gap-[2px] h-2.5">
-                    <span className={`w-[2px] bg-emerald-400 rounded-full transition-all duration-200 ${bannerData.isPlayingMusic ? 'h-2.5 animate-pulse' : 'h-1'}`} />
-                    <span className={`w-[2px] bg-emerald-400 rounded-full transition-all duration-300 ${bannerData.isPlayingMusic ? 'h-1.5 animate-ping' : 'h-1.5'}`} />
-                    <span className={`w-[2px] bg-emerald-400 rounded-full transition-all duration-200 ${bannerData.isPlayingMusic ? 'h-3 animate-pulse' : 'h-1'}`} />
-                  </div>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" className="text-emerald-400">
+                    <path d="M9 18V5l12-2v13" />
+                    <circle cx="6" cy="18" r="3" />
+                    <circle cx="18" cy="16" r="3" />
+                  </svg>
                   <span className="text-[10px] text-gray-300 truncate max-w-[120px]">
                     {bannerData.musicTitle}
                   </span>
+                  <div className="flex items-end gap-[2px] h-2.5 ml-0.5">
+                    <span className={`w-[2px] bg-emerald-400 rounded-full transition-all ${bannerData.isPlayingMusic ? 'h-2.5 animate-pulse' : 'h-1'}`} />
+                    <span className={`w-[2px] bg-emerald-400 rounded-full transition-all ${bannerData.isPlayingMusic ? 'h-1.5 animate-ping' : 'h-1.5'}`} />
+                    <span className={`w-[2px] bg-emerald-400 rounded-full transition-all ${bannerData.isPlayingMusic ? 'h-3 animate-pulse' : 'h-1'}`} />
+                  </div>
                 </div>
 
+                {/* 3. Deretan Icon Medsos di Bawah Musik */}
                 {bannerData.socials && bannerData.socials.length > 0 && (
                   <div className="flex items-center justify-center gap-2 mt-1.5 flex-wrap">
                     {bannerData.socials.map((social, idx) => (
@@ -312,6 +423,7 @@ export default function App() {
                 )}
               </div>
 
+              {/* HANDLE RESIZE SUDUT MELENGKUNG IOS */}
               <div
                 onTouchStart={handleTouchStart}
                 onTouchMove={handleTouchMove}
@@ -341,7 +453,7 @@ export default function App() {
             </div>
           )}
 
-          {/* Sisa Grid Slots Kosong */}
+          {/* Sisa Grid Slots Kosong (Total 100 slot, indeks dinamis) */}
           {Array.from({ length: Math.max(0, 100 - (isOccupied ? totalSlotsUsed : 1)) }).map((_, i) => {
             const slotNumber = (isOccupied ? totalSlotsUsed : 1) + i + 1;
             return (
@@ -361,7 +473,7 @@ export default function App() {
         </div>
       </div>
 
-      {/* Drawer Menu */}
+      {/* DRAWER MENU PANEL KONTROL */}
       {isMenuOpen && (
         <div className="fixed inset-0 z-50 flex">
           <div 
@@ -369,8 +481,10 @@ export default function App() {
             className="fixed inset-0 bg-black/60 backdrop-blur-md transition-opacity duration-300"
           />
 
-          <div className="relative w-80 max-w-[85vw] h-full bg-[#0c121e]/95 backdrop-blur-2xl border-r border-white/10 p-5 flex flex-col justify-between shadow-2xl z-10 animate-[slideRight_0.3s_cubic-bezier(0.16,1,0.3,1)]">
-            <div className="flex flex-col gap-5 overflow-y-auto pr-1">
+          <div className="relative w-84 max-w-[88vw] h-full bg-[#0c121e]/90 backdrop-blur-2xl border-r border-white/10 p-5 flex flex-col justify-between shadow-2xl z-10 animate-[slideRight_0.3s_cubic-bezier(0.16,1,0.3,1)]">
+            <div className="flex flex-col gap-4 overflow-y-auto pr-1">
+              
+              {/* Header Drawer */}
               <div className="flex items-center justify-between pb-3 border-b border-white/10">
                 <span className="font-bold text-sm tracking-wide text-gray-200">Panel Kontrol</span>
                 <button
@@ -381,25 +495,32 @@ export default function App() {
                 </button>
               </div>
 
-              <div className="grid grid-cols-2 gap-1.5 p-1 bg-[#070b12] rounded-2xl border border-white/5">
-                {['slots', 'subscription', 'plugin', 'profile'].map((tab) => (
+              {/* Navigasi Tab */}
+              <div className="grid grid-cols-2 gap-1.5 p-1 bg-[#070b12]/90 rounded-2xl border border-white/5 backdrop-blur-md">
+                {[
+                  { key: 'slots', label: 'Slots' },
+                  { key: 'subscription', label: 'Langganan' },
+                  { key: 'plugin', label: 'Plugin' },
+                  { key: 'profile', label: 'Saya' },
+                ].map((item) => (
                   <button
-                    key={tab}
-                    onClick={() => setActiveTab(tab)}
-                    className={`py-2 px-3 rounded-xl text-[11px] font-semibold capitalize transition-all duration-300 active:scale-95 ${
-                      activeTab === tab 
+                    key={item.key}
+                    onClick={() => setActiveTab(item.key)}
+                    className={`py-2 px-3 rounded-xl text-[11px] font-semibold transition-all duration-300 active:scale-95 ${
+                      activeTab === item.key 
                         ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 shadow-sm' 
                         : 'text-gray-400 hover:text-white'
                     }`}
                   >
-                    {tab === 'slots' ? 'Slots' : tab === 'subscription' ? 'Langganan' : tab === 'plugin' ? 'Plugin' : 'Saya'}
+                    {item.label}
                   </button>
                 ))}
               </div>
 
+              {/* --- TAB 1: SLOTS --- */}
               {activeTab === 'slots' && (
                 <div className="flex flex-col gap-3 text-left">
-                  <div className="p-3.5 rounded-2xl bg-white/[0.03] border border-white/5 flex flex-col gap-1.5">
+                  <div className="p-3.5 rounded-2xl bg-white/[0.03] border border-white/10 backdrop-blur-xl flex flex-col gap-1.5 shadow-sm">
                     <span className="text-xs font-bold text-gray-200">Status Slot Aktif</span>
                     <span className="text-[11px] text-gray-400">Dimensi Grid: {colSpan} Kolom x {rowSpan} Baris</span>
                     <span className="text-[11px] text-emerald-400 font-medium">Kapasitas Digunakan: {totalSlotsUsed} Slot</span>
@@ -413,79 +534,200 @@ export default function App() {
                 </div>
               )}
 
+              {/* --- TAB 2: LANGGANAN (3 TIER ASLI + GLASSMORPHISM) --- */}
               {activeTab === 'subscription' && (
                 <div className="flex flex-col gap-3 text-left">
-                  <div className="p-3.5 rounded-2xl bg-gradient-to-br from-amber-500/10 to-transparent border border-amber-500/30 flex flex-col gap-2">
+                  <span className="text-xs font-bold text-gray-300">Pilih Paket Langganan</span>
+                  
+                  {/* 1. Motion Basic */}
+                  <div 
+                    onClick={() => { setCurrentPlan('Basic'); persistAll(bannerData, colSpan, rowSpan, isOccupied, userProfile, 'Basic', uploadedBanners); }}
+                    className={`p-3.5 rounded-2xl cursor-pointer transition-all border backdrop-blur-xl ${
+                      currentPlan === 'Basic'
+                        ? 'bg-gradient-to-br from-white/15 to-white/5 border-white/40 shadow-[0_0_15px_rgba(255,255,255,0.1)]'
+                        : 'bg-white/[0.02] border-white/5 hover:border-white/20'
+                    }`}
+                  >
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-amber-300">Motion Super Pass</span>
-                      <span className="px-2 py-0.5 rounded-full bg-amber-400/20 text-amber-300 text-[10px] font-bold">PRO</span>
+                      <span className="text-xs font-bold text-gray-200">1. Motion Basic</span>
+                      {currentPlan === 'Basic' && <span className="text-[9px] px-2 py-0.5 rounded-full bg-white/20 text-white font-bold">AKTIF</span>}
                     </div>
-                    <p className="text-[11px] text-gray-300 leading-relaxed">
-                      Dapatkan efek shimmer gradasi bergerak dan animasi rotasi neon glow tanpa batas di banner tokomu.
+                    <p className="text-[10px] text-gray-400 mt-1 leading-relaxed">
+                      Warna abu-abu gradasi putih halus + glassmorphism. Slot standar tanpa animasi ekstra.
                     </p>
-                    <button 
-                      onClick={() => setIsMotionSuper(!isMotionSuper)}
-                      className="mt-1 w-full py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-black text-xs font-bold transition active:scale-95"
-                    >
-                      {isMotionSuper ? 'Matikan Motion Super' : 'Aktifkan Motion Super'}
-                    </button>
+                  </div>
+
+                  {/* 2. Motion Pro */}
+                  <div 
+                    onClick={() => { setCurrentPlan('Pro'); persistAll(bannerData, colSpan, rowSpan, isOccupied, userProfile, 'Pro', uploadedBanners); }}
+                    className={`p-3.5 rounded-2xl cursor-pointer transition-all border backdrop-blur-xl ${
+                      currentPlan === 'Pro'
+                        ? 'bg-gradient-to-br from-violet-600/20 to-blue-600/10 border-violet-500/40 shadow-[0_0_18px_rgba(139,92,246,0.2)]'
+                        : 'bg-white/[0.02] border-white/5 hover:border-violet-500/20'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-violet-300">2. Motion Pro</span>
+                      {currentPlan === 'Pro' && <span className="text-[9px] px-2 py-0.5 rounded-full bg-violet-500/30 text-violet-300 font-bold">AKTIF</span>}
+                    </div>
+                    <p className="text-[10px] text-gray-400 mt-1 leading-relaxed">
+                      Warna ungu gradasi biru elektrik + glassmorphism neon border. Tampilan modern dan tajam.
+                    </p>
+                  </div>
+
+                  {/* 3. Motion Super */}
+                  <div 
+                    onClick={() => { setCurrentPlan('Super'); persistAll(bannerData, colSpan, rowSpan, isOccupied, userProfile, 'Super', uploadedBanners); }}
+                    className={`p-3.5 rounded-2xl cursor-pointer transition-all border backdrop-blur-xl ${
+                      currentPlan === 'Super'
+                        ? 'bg-gradient-to-br from-amber-500/20 to-yellow-600/10 border-amber-500/50 shadow-[0_0_20px_rgba(245,158,11,0.25)]'
+                        : 'bg-white/[0.02] border-white/5 hover:border-amber-500/20'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-amber-300">3. Motion Super</span>
+                      {currentPlan === 'Super' && <span className="text-[9px] px-2 py-0.5 rounded-full bg-amber-500/30 text-amber-300 font-bold">AKTIF</span>}
+                    </div>
+                    <p className="text-[10px] text-gray-400 mt-1 leading-relaxed">
+                      Warna emas gradasi shimmer + full animasi rotasi bercahaya di icon medsos & teks bergerak.
+                    </p>
                   </div>
                 </div>
               )}
 
+              {/* --- TAB 3: PLUGIN (UPLOAD MUSIK SENDIRI) --- */}
               {activeTab === 'plugin' && (
                 <div className="flex flex-col gap-3 text-left">
-                  <div className="p-3.5 rounded-2xl bg-white/[0.03] border border-white/5 flex flex-col gap-2.5">
-                    <span className="text-xs font-bold text-gray-200">Plugin Audio Background</span>
-                    <input 
-                      type="text" 
-                      value={bannerData.musicTitle}
-                      onChange={(e) => setBannerData({ ...bannerData, musicTitle: e.target.value })}
-                      placeholder="Judul Lagu..."
-                      className="w-full bg-[#070b12] border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500/50"
-                    />
-                    <div className="flex items-center justify-between text-[11px] text-gray-400">
-                      <span>Status Putar</span>
+                  <div className="p-3.5 rounded-2xl bg-white/[0.03] border border-white/10 backdrop-blur-xl flex flex-col gap-2.5">
+                    <span className="text-xs font-bold text-gray-200">Penyimpanan & Upload Musik</span>
+                    <p className="text-[10px] text-gray-400">
+                      Upload lagu favoritmu (.mp3/audio) untuk diputar pengunjung di bawah nama banner.
+                    </p>
+                    
+                    {/* Tombol Upload File Musik Lokal */}
+                    <label className="w-full py-2.5 px-3 rounded-xl bg-violet-600/20 hover:bg-violet-600/30 border border-violet-500/30 text-violet-300 text-xs font-semibold flex items-center justify-center gap-2 cursor-pointer active:scale-95 transition">
+                      <input type="file" accept="audio/*" onChange={handleMusicUpload} className="hidden" />
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+                        <path d="M9 18V5l12-2v13" />
+                        <circle cx="6" cy="18" r="3" />
+                        <circle cx="18" cy="16" r="3" />
+                      </svg>
+                      <span>Upload File Musik Sendiri</span>
+                    </label>
+
+                    {/* Input Judul Lagu */}
+                    <div className="mt-1">
+                      <label className="text-[10px] text-gray-400 block mb-1">Judul Musik Terpasang</label>
+                      <input 
+                        type="text" 
+                        value={bannerData.musicTitle}
+                        onChange={(e) => {
+                          const updated = { ...bannerData, musicTitle: e.target.value };
+                          setBannerData(updated);
+                          persistAll(updated, colSpan, rowSpan, isOccupied, userProfile, currentPlan, uploadedBanners);
+                        }}
+                        className="w-full bg-[#070b12] border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-violet-500/50"
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between text-[11px] text-gray-400 pt-1">
+                      <span>Coba Putar</span>
                       <button 
-                        onClick={() => setBannerData(prev => ({ ...prev, isPlayingMusic: !prev.isPlayingMusic }))}
-                        className="px-2.5 py-1 rounded-lg bg-white/10 text-emerald-400 font-semibold"
+                        onClick={togglePlayMusic}
+                        className="px-3 py-1 rounded-lg bg-white/10 text-emerald-400 font-semibold active:scale-95 transition"
                       >
-                        {bannerData.isPlayingMusic ? 'Pause ⏸' : 'Play ▶'}
+                        {bannerData.isPlayingMusic ? 'Jeda ⏸' : 'Putar ▶'}
                       </button>
                     </div>
                   </div>
                 </div>
               )}
 
+              {/* --- TAB 4: SAYA (PROFILE USER SENDIRI & 5 FITUR) --- */}
               {activeTab === 'profile' && (
-                <div className="flex flex-col gap-3 text-left">
-                  <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/5 flex flex-col items-center gap-2 text-center">
-                    <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-emerald-500 to-violet-600 p-[1.5px]">
-                      <div className="w-full h-full bg-[#0a0f16] rounded-2xl flex items-center justify-center text-sm font-bold text-white">
-                        API
+                <div className="flex flex-col gap-3.5 text-left">
+                  
+                  {/* 1. Atur Profil User Sendiri */}
+                  <div className="p-3.5 rounded-2xl bg-white/[0.03] border border-white/10 backdrop-blur-xl flex flex-col gap-3">
+                    <span className="text-xs font-bold text-gray-200">1. Atur Profil Sendiri</span>
+                    <div className="flex items-center gap-3">
+                      <label className="relative cursor-pointer group shrink-0">
+                        <input type="file" accept="image/*" onChange={handleAvatarUpload} className="hidden" />
+                        <img 
+                          src={userProfile.avatar} 
+                          alt="Avatar" 
+                          className="w-12 h-12 rounded-2xl object-cover border border-white/20 group-hover:opacity-75 transition"
+                        />
+                        <span className="absolute inset-0 flex items-center justify-center bg-black/40 rounded-2xl opacity-0 group-hover:opacity-100 text-[10px] text-white">
+                          Ganti
+                        </span>
+                      </label>
+                      <div className="flex-1">
+                        <label className="text-[10px] text-gray-400 block mb-1">Nama Brand / Profil</label>
+                        <input 
+                          type="text" 
+                          value={userProfile.name}
+                          onChange={(e) => {
+                            const newProfile = { ...userProfile, name: e.target.value };
+                            setUserProfile(newProfile);
+                            persistAll(bannerData, colSpan, rowSpan, isOccupied, newProfile, currentPlan, uploadedBanners);
+                          }}
+                          className="w-full bg-[#070b12] border border-white/10 rounded-xl px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500/50"
+                        />
                       </div>
                     </div>
-                    <span className="text-xs font-bold text-gray-100">Anak Programmer Indonesia</span>
-                    <span className="text-[10px] text-emerald-400 font-mono">Member ID: #AP-8842</span>
                   </div>
 
-                  <div className="p-3.5 rounded-2xl bg-white/[0.03] border border-white/5 flex flex-col gap-2">
-                    <span className="text-xs font-bold text-gray-200">Analisis Performa</span>
+                  {/* 2. Banner yang Telah Diupload & Ukurannya */}
+                  <div className="p-3.5 rounded-2xl bg-white/[0.03] border border-white/10 backdrop-blur-xl flex flex-col gap-2">
+                    <span className="text-xs font-bold text-gray-200">2. Riwayat Upload Banner</span>
+                    <div className="flex flex-col gap-1.5 max-h-28 overflow-y-auto">
+                      {uploadedBanners.map((item) => (
+                        <div key={item.id} className="p-2 rounded-xl bg-black/40 border border-white/5 flex items-center justify-between">
+                          <div className="flex flex-col">
+                            <span className="text-[11px] font-semibold text-gray-200">{item.name}</span>
+                            <span className="text-[9px] text-gray-400">{item.date}</span>
+                          </div>
+                          <span className="px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-400 text-[9px] font-mono font-bold">
+                            {item.size}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* 3. Status Langganan & Waktu Berakhir */}
+                  <div className="p-3.5 rounded-2xl bg-white/[0.03] border border-white/10 backdrop-blur-xl flex flex-col gap-1.5">
+                    <span className="text-xs font-bold text-gray-200">3. Status Langganan</span>
+                    <div className="flex items-center justify-between text-[11px] pt-1">
+                      <span className="text-gray-400">Paket Aktif:</span>
+                      <span className="font-bold text-amber-300">Motion {currentPlan}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-[11px]">
+                      <span className="text-gray-400">Berakhir Pada:</span>
+                      <span className="font-mono text-emerald-400">{subscriptionExpiry}</span>
+                    </div>
+                  </div>
+
+                  {/* 4. Analisis Klik Banner */}
+                  <div className="p-3.5 rounded-2xl bg-white/[0.03] border border-white/10 backdrop-blur-xl flex flex-col gap-2">
+                    <span className="text-xs font-bold text-gray-200">4. Analisis Performa Banner</span>
                     <div className="grid grid-cols-2 gap-2">
                       <div className="p-2 rounded-xl bg-black/40 border border-white/5 flex flex-col">
                         <span className="text-[9px] text-gray-400">Total Klik</span>
-                        <span className="text-sm font-extrabold text-white">128</span>
+                        <span className="text-sm font-extrabold text-white">{bannerData.clicks}</span>
                       </div>
                       <div className="p-2 rounded-xl bg-black/40 border border-white/5 flex flex-col">
                         <span className="text-[9px] text-gray-400">Total Dilihat</span>
-                        <span className="text-sm font-extrabold text-emerald-400">1.4K</span>
+                        <span className="text-sm font-extrabold text-emerald-400">{bannerData.views}</span>
                       </div>
                     </div>
                   </div>
 
+                  {/* Tombol Reset Data */}
                   <button 
                     onClick={() => {
-                      localStorage.removeItem('promotion_slot_data');
+                      localStorage.removeItem('promotion_slot_data_v2');
                       setIsOccupied(false);
                       setIsMenuOpen(false);
                     }}
@@ -495,24 +737,30 @@ export default function App() {
                   </button>
                 </div>
               )}
+
             </div>
 
-            <div className="pt-4 border-t border-white/10 flex items-center gap-3">
-              <div className="w-9 h-9 rounded-2xl bg-gradient-to-tr from-emerald-500 to-violet-600 p-[1px]">
-                <div className="w-full h-full bg-[#0a0f16] rounded-2xl flex items-center justify-center text-xs font-bold text-white">
-                  A
-                </div>
-              </div>
-              <div className="flex flex-col text-left">
-                <span className="text-xs font-bold text-gray-200">amotionwebsite</span>
-                <span className="text-[10px] text-gray-400 font-mono">Community Dev</span>
+            {/* FOOTER DRAWER: IDENTITAS SAYA (PROFILE USER SENDIRI) */}
+            <div 
+              onClick={() => setActiveTab('profile')}
+              className="pt-4 border-t border-white/10 flex items-center gap-3 cursor-pointer hover:bg-white/[0.02] p-1.5 rounded-2xl transition"
+            >
+              <img 
+                src={userProfile.avatar} 
+                alt="Avatar" 
+                className="w-10 h-10 rounded-2xl object-cover border border-white/20 shadow-md shrink-0" 
+              />
+              <div className="flex flex-col text-left truncate">
+                <span className="text-xs font-bold text-gray-200 truncate">{userProfile.name}</span>
+                <span className="text-[10px] text-emerald-400 font-mono">Saya (Profil Aktif)</span>
               </div>
             </div>
+
           </div>
         </div>
       )}
 
-      {/* Modal Form Sewa */}
+      {/* MODAL FORM SEWA BANNER */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-fadeIn">
           <div className="w-full max-w-sm rounded-[32px] bg-[#111722]/90 backdrop-blur-2xl border border-white/10 p-5 shadow-[0_20px_50px_rgba(0,0,0,0.85)] flex flex-col gap-3.5 text-left relative transition-all duration-300 max-h-[90vh] overflow-y-auto">
@@ -597,7 +845,10 @@ export default function App() {
               <label className="text-xs text-gray-400 font-medium block mb-1">Tambah Icon Medsos Kustom & Link</label>
               <div className="flex items-center gap-2">
                 <label className="cursor-pointer w-10 h-10 rounded-2xl bg-[#0a0f16]/90 border border-white/10 flex items-center justify-center hover:border-emerald-500/40 transition shrink-0 active:scale-95">
-                  <input type="file" accept="image/*" onChange={handleCustomIconUpload} className="hidden" />
+                  <input type="file" accept="image/*" onChange={(e) => {
+                    const f = e.target.files[0];
+                    if (f) setCustomIcon(URL.createObjectURL(f));
+                  }} className="hidden" />
                   {customIcon ? (
                     <img src={customIcon} alt="Icon" className="w-6 h-6 rounded-full object-cover" />
                   ) : (
@@ -635,7 +886,7 @@ export default function App() {
         </div>
       )}
 
-      {/* Popup Bayar QRIS */}
+      {/* POPUP BAYAR QRIS */}
       {isPaymentOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-lg animate-fadeIn">
           <div className="w-full max-w-xs rounded-[32px] bg-[#111722]/95 border border-white/10 p-5 shadow-2xl flex flex-col items-center text-center gap-4">
