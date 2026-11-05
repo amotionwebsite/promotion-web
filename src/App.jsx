@@ -364,19 +364,22 @@ export default function App() {
             </div>
           )}
 
-          {/* Sisa Grid Slots Kosong (#2 s/d #35) */}
-          {Array.from({ length: 34 }).map((_, i) => (
-            <div
-              key={i}
-              onClick={() => setIsModalOpen(true)}
-              className="rounded-2xl border border-white/[0.04] bg-[#0f1622]/50 hover:bg-[#152030]/60 hover:border-emerald-500/20 flex flex-col items-center justify-center cursor-pointer transition-all duration-300 group active:scale-95"
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" className="text-gray-600 group-hover:text-emerald-400 transition-colors">
-                <path d="M12 5v14M5 12h14" />
-              </svg>
-              <span className="text-[9px] text-gray-600 group-hover:text-gray-400 font-mono mt-0.5">#{i + 2}</span>
-            </div>
-          ))}
+          {/* Sisa Grid Slots Kosong (Nomor Otomatis Dinamis Menyesuaikan Slot yang Ditelan Banner) */}
+          {Array.from({ length: Math.max(0, 100 - (isOccupied ? totalSlotsUsed : 1)) }).map((_, i) => {
+            const slotNumber = (isOccupied ? totalSlotsUsed : 1) + i + 1;
+            return (
+              <div
+                key={slotNumber}
+                onClick={() => setIsModalOpen(true)}
+                className="rounded-2xl border border-white/[0.04] bg-[#0f1622]/50 hover:bg-[#152030]/60 hover:border-emerald-500/20 flex flex-col items-center justify-center cursor-pointer transition-all duration-300 group active:scale-95"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" className="text-gray-600 group-hover:text-emerald-400 transition-colors">
+                  <path d="M12 5v14M5 12h14" />
+                </svg>
+                <span className="text-[9px] text-gray-600 group-hover:text-gray-400 font-mono mt-0.5">#{slotNumber}</span>
+              </div>
+            );
+          })}
 
         </div>
       </div>
@@ -543,7 +546,7 @@ export default function App() {
               </button>
             </div>
 
-            {/* Input Nama Brand (Bersih Tanpa Perlu Hapus) */}
+            {/* Input Nama Brand (Langsung Ngetik Tanpa Perlu Hapus Teks) */}
             <div>
               <label className="text-xs text-gray-400 font-medium block mb-1">Nama Merek / Produk</label>
               <input
