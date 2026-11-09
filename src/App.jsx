@@ -14,7 +14,15 @@ import {
   Disc3,
   Sliders,
   Wifi,
-  WifiOff
+  WifiOff,
+  ExternalLink,
+  Plus,
+  Play,
+  Pause,
+  Edit2,
+  Check,
+  X,
+  Volume2
 } from 'lucide-react';
 
 const SOCKET_URL = 'https://promotion-backend-production.up.railway.app';
@@ -29,7 +37,7 @@ export default function App() {
 
   // State Langganan: Default 'Basic'
   const [currentPlan, setCurrentPlan] = useState('Basic');
-  const [subscriptionExpiry, setSubscriptionExpiry] = useState('12 Des 2026');
+  const [subscriptionExpiry, setSubscriptionExpiry] = useState(null);
 
   // State Drawer & Modal Navigasi
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -41,7 +49,7 @@ export default function App() {
   // State Ukuran Grid Slot - DEFAULT 5x1
   const [colSpan, setColSpan] = useState(5);
   const [rowSpan, setRowSpan] = useState(1);
-  const [selectedRatio, setSelectedRatio] = useState('5:1');
+  const [selectedRatio, setSelectedRatio] = useState('5x1');
 
   // State User Profile
   const [userProfile, setUserProfile] = useState({
@@ -64,1385 +72,470 @@ export default function App() {
 
   // Modal Tambah Medsos
   const [isAddSocialOpen, setIsAddSocialOpen] = useState(false);
-  const [newSocialIcon, setNewSocialIcon] = useState(null);
+  const [newSocialIcon, setNewSocialIcon] = useState('Globe');
   const [newSocialUrl, setNewSocialUrl] = useState('');
-
-  // State Data Banner & Media
-  const [isOccupied, setIsOccupied] = useState(true);
-  const [bannerData, setBannerData] = useState({
-    name: 'Anak Programmer Indonesia',
-    brandFont: '',
-    image: null,
-    link: 'https://linktujuankamu',
-    musicTitle: 'iphone-circles',
-    musicFile: null,
-    isPlayingMusic: false,
-    musicVisualizerType: 'bars',
-    clicks: 142,
-    views: 1890,
-    socials: [],
-  });
-
-  // State Riwayat Banner
-  const [uploadedBanners, setUploadedBanners] = useState([
-    {
-      id: 1,
-      name: 'Anak Programmer Indonesia',
-      size: '5x1 (5 Slot)',
-      date: '09 Nov 2026',
-    },
+  const [socials, setSocials] = useState([
+    { id: 1, name: 'TikTok', url: 'https://tiktok.com/@anakprogrammer' },
+    { id: 2, name: 'Discord', url: 'https://discord.gg/anakprogrammer' },
+    { id: 3, name: 'WhatsApp', url: 'https://chat.whatsapp.com' }
   ]);
 
-  // Modal State Sewa / Edit Banner
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [inputName, setInputName] = useState('');
-  const [inputImage, setInputImage] = useState(null);
-  const [inputLink, setInputLink] = useState('');
-
-  // Upload Progress & Payment Simulation
-  const [isUploading, setIsUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
-  const [isPaymentOpen, setIsPaymentOpen] = useState(false);
-  const [isProcessingPay, setIsProcessingPay] = useState(false);
-
-  // Audio & Drag Ref
+  // State Banner & Media Custom
+  const [bannerImage, setBannerImage] = useState(null);
+  const [bannerLink, setBannerLink] = useState('https://linktujuankamu.com');
+  const [brandFont, setBrandFont] = useState('');
+  const [fontName, setFontName] = useState('');
+  
+  // State Musik & Audio Player
+  const [musicTitle, setMusicTitle] = useState('iphone-circles');
+  const [musicFile, setMusicFile] = useState(null);
+  const [isPlayingMusic, setIsPlayingMusic] = useState(false);
+  const [musicVisualizerType, setMusicVisualizerType] = useState('bars');
   const audioRef = useRef(null);
-  const dragStartRef = useRef(null);
 
-  // --- SINKRONISASI REAL-TIME WEBSOCKET (SOCKET.IO) ---
+  // State Statistik
+  const [clicks, setClicks] = useState(142);
+  const [views, setViews] = useState(1890);
+
+  // Sinkronisasi Socket.io Real-time
   useEffect(() => {
     socket.on('connect', () => {
       setIsConnected(true);
-      console.log('Terhubung ke ProMotion Realtime Server');
+      socket.emit('get_billboard');
     });
 
     socket.on('disconnect', () => {
       setIsConnected(false);
-      console.log('Terputus dari ProMotion Realtime Server');
     });
 
-    // Inisialisasi awal saat user buka web
-    socket.on('billboard_init', (data) => {
-      applyIncomingData(data);
-    });
-
-    // Menerima update LIVE dari user lain yang mengubah data
-    socket.on('billboard_updated', (data) => {
-      applyIncomingData(data);
-    });
-
-    // Sinkronisasi klik banner real-time
-    socket.on('banner_click_updated', (clicks) => {
-      setBannerData((prev) => ({ ...prev, clicks }));
+    socket.on('billboard_data', (data) => {
+      if (data) {
+        if (data.colSpan) setColSpan(data.colSpan);
+        if (data.rowSpan) setRowSpan(data.rowSpan);
+        if (data.currentPlan) setCurrentPlan(data.currentPlan);
+        if (data.userProfile) {
+          setUserProfile(data.userProfile);
+          setTempProfileName(data.userProfile.name);
+          setTempAvatar(data.userProfile.avatar);
+        }
+        if (data.image) setBannerImage(data.image);
+        if (data.link) setBannerLink(data.link);
+        if (data.brandFont) {
+          setBrandFont(data.brandFont);
+          applyCustomFont(data.brandFont);
+        }
+        if (data.musicTitle) setMusicTitle(data.musicTitle);
+        if (data.musicFile) setMusicFile(data.musicFile);
+        if (data.clicks !== undefined) setClicks(data.clicks);
+        if (data.views !== undefined) setViews(data.views);
+        if (data.socials) setSocials(data.socials);
+      }
     });
 
     return () => {
       socket.off('connect');
       socket.off('disconnect');
-      socket.off('billboard_init');
-      socket.off('billboard_updated');
-      socket.off('banner_click_updated');
+      socket.off('billboard_data');
     };
   }, []);
 
-  const applyIncomingData = (data) => {
-    if (!data) return;
-    setBannerData((prev) => ({
-      ...prev,
-      name: data.name ?? prev.name,
-      brandFont: data.brandFont ?? prev.brandFont,
-      image: data.image ?? prev.image,
-      link: data.link ?? prev.link,
-      musicTitle: data.musicTitle ?? prev.musicTitle,
-      musicFile: data.musicFile ?? prev.musicFile,
-      musicVisualizerType: data.musicVisualizerType ?? prev.musicVisualizerType,
-      clicks: data.clicks ?? prev.clicks,
-      views: data.views ?? prev.views,
-      socials: data.socials ?? prev.socials,
-    }));
-
-    if (data.colSpan) setColSpan(data.colSpan);
-    if (data.rowSpan) setRowSpan(data.rowSpan);
-    if (data.currentPlan) setCurrentPlan(data.currentPlan);
-    if (data.userProfile) {
-      setUserProfile(data.userProfile);
-      setTempProfileName(data.userProfile.name);
-      setTempAvatar(data.userProfile.avatar);
+  // Pasang custom font secara dinamis ke head HTML
+  const applyCustomFont = (fontBase64) => {
+    if (!fontBase64) return;
+    const styleId = 'custom-brand-font';
+    let styleTag = document.getElementById(styleId);
+    if (!styleTag) {
+      styleTag = document.createElement('style');
+      styleTag.id = styleId;
+      document.head.appendChild(styleTag);
     }
+    styleTag.innerHTML = `
+      @font-face {
+        font-family: 'UploadedBrandFont';
+        src: url(${fontBase64});
+      }
+      .font-brand {
+        font-family: 'UploadedBrandFont', sans-serif !important;
+      }
+    `;
+    setFontName('UploadedBrandFont');
   };
 
-  // Broadcast Perubahan ke Seluruh Client
-  const broadcastUpdate = (updatedBanner, cols, rows, plan, profile) => {
-    const payload = {
-      name: updatedBanner.name,
-      brandFont: updatedBanner.brandFont,
-      image: updatedBanner.image,
-      link: updatedBanner.link,
-      musicTitle: updatedBanner.musicTitle,
-      musicFile: updatedBanner.musicFile,
-      musicVisualizerType: updatedBanner.musicVisualizerType,
-      clicks: updatedBanner.clicks,
-      views: updatedBanner.views,
-      socials: updatedBanner.socials,
-      colSpan: cols ?? colSpan,
-      rowSpan: rows ?? rowSpan,
-      currentPlan: plan ?? currentPlan,
-      userProfile: profile ?? userProfile,
-    };
-    socket.emit('update_billboard', payload);
-  };
-
-  const totalSlotsUsed = colSpan * rowSpan;
-  const isFreeSlot = totalSlotsUsed <= 1;
-  const totalPrice = isFreeSlot ? 0 : (totalSlotsUsed - 1) * 1000;
-  const isMotionSuper = currentPlan === 'Super';
-
-  const getMaxSocials = () => {
-    if (currentPlan === 'Basic') return 2;
-    if (currentPlan === 'Pro') return 5;
-    return 999;
-  };
-
-  const triggerAutoSaveTimer = () => {
-    setShowSaveBtn(true);
-    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
-    saveTimerRef.current = setTimeout(() => {
-      setShowSaveBtn(false);
-    }, 5000);
-  };
-
-  const handleSaveProfile = () => {
-    const updatedProfile = {
-      ...userProfile,
-      name: tempProfileName.trim() ? tempProfileName : userProfile.name,
-      avatar: tempAvatar,
-    };
-    setUserProfile(updatedProfile);
-    setShowSaveBtn(false);
-    broadcastUpdate(bannerData, colSpan, rowSpan, currentPlan, updatedProfile);
-  };
-
-  const handleTouchStart = (e) => {
-    e.stopPropagation();
-    const touch = e.touches[0];
-    dragStartRef.current = { x: touch.clientX, y: touch.clientY, initialCols: colSpan, initialRows: rowSpan };
-  };
-
-  const handleTouchMove = (e) => {
-    if (!dragStartRef.current) return;
-    const touch = e.touches[0];
-    const diffX = touch.clientX - dragStartRef.current.x;
-    const diffY = touch.clientY - dragStartRef.current.y;
-
-    const addCols = Math.round(diffX / 42);
-    const addRows = Math.round(diffY / 42);
-
-    const nextCols = Math.min(Math.max(dragStartRef.current.initialCols + addCols, 1), 5);
-    const nextRows = Math.min(Math.max(dragStartRef.current.initialRows + addRows, 1), 6);
-
-    setColSpan(nextCols);
-    setRowSpan(nextRows);
-  };
-
-  const handleTouchEnd = () => {
-    dragStartRef.current = null;
-    broadcastUpdate(bannerData, colSpan, rowSpan, currentPlan, userProfile);
-  };
-
-  const applyAspectRatio = (ratio) => {
-    setSelectedRatio(ratio);
-    let nextCols = colSpan;
-    let nextRows = rowSpan;
-    if (ratio === '1:1') { nextCols = 1; nextRows = 1; }
-    else if (ratio === '5:1') { nextCols = 5; nextRows = 1; }
-    else if (ratio === '2x2') { nextCols = 2; nextRows = 2; }
-    else if (ratio === '9:16') { nextCols = 2; nextRows = 4; }
-    else if (ratio === '16:9') { nextCols = 4; nextRows = 2; }
-
-    setColSpan(nextCols);
-    setRowSpan(nextRows);
-    broadcastUpdate(bannerData, nextCols, nextRows, currentPlan, userProfile);
-  };
-
-  const handleBannerUpload = (e) => {
+  // Upload Custom Font (.ttf/.otf)
+  const handleFontUpload = (e) => {
     const file = e.target.files[0];
     if (file) {
-      setIsUploading(true);
-      setUploadProgress(15);
-      const interval = setInterval(() => {
-        setUploadProgress((prev) => {
-          if (prev >= 95) {
-            clearInterval(interval);
-            return 95;
-          }
-          return prev + 25;
-        });
-      }, 120);
-
-      setTimeout(() => {
-        clearInterval(interval);
-        setUploadProgress(100);
-        setInputImage(URL.createObjectURL(file));
-        setTimeout(() => setIsUploading(false), 300);
-      }, 700);
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const base64Font = event.target.result;
+        setBrandFont(base64Font);
+        applyCustomFont(base64Font);
+        broadcastUpdate({ brandFont: base64Font });
+      };
+      reader.readAsDataURL(file);
     }
   };
 
-  const handleAvatarFileSelect = (e) => {
-    const file = e.target.files[0];
-    if (file && file.type.startsWith('image/')) {
-      setRawAvatarImage(URL.createObjectURL(file));
-      setZoomLevel(1);
-      setRotateDeg(0);
-      setCropModalOpen(true);
-    }
-  };
-
-  const handleConfirmCrop = () => {
-    setTempAvatar(rawAvatarImage);
-    setCropModalOpen(false);
-    triggerAutoSaveTimer();
-  };
-
-  const handleFontUpload = async (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      const isFont = file.name.endsWith('.ttf') || file.name.endsWith('.otf');
-      if (!isFont) {
-        alert('File harus berformat .ttf atau .otf');
-        return;
-      }
-      try {
-        const fontName = 'BrandCustomFont';
-        const buffer = await file.arrayBuffer();
-        const fontFace = new FontFace(fontName, buffer);
-        await fontFace.load();
-        document.fonts.add(fontFace);
-
-        const updatedBanner = { ...bannerData, brandFont: fontName };
-        setBannerData(updatedBanner);
-        triggerAutoSaveTimer();
-        broadcastUpdate(updatedBanner, colSpan, rowSpan, currentPlan, userProfile);
-      } catch (err) {
-        console.error('Gagal load font:', err);
-      }
-    }
-  };
-
+  // Upload Custom Musik (.mp3)
   const handleMusicUpload = (e) => {
     const file = e.target.files[0];
     if (file) {
-      const isMp3 = file.name.endsWith('.mp3') || file.type.includes('audio');
-      if (!isMp3) {
-        alert('File harus berformat .mp3');
-        return;
-      }
       const audioUrl = URL.createObjectURL(file);
-      const updated = {
-        ...bannerData,
-        musicTitle: file.name.replace(/\.[^/.]+$/, ''),
-        musicFile: audioUrl,
-        isPlayingMusic: false,
-      };
-      setBannerData(updated);
-      triggerAutoSaveTimer();
-      broadcastUpdate(updated, colSpan, rowSpan, currentPlan, userProfile);
+      setMusicFile(audioUrl);
+      setMusicTitle(file.name.replace(/\.[^/.]+$/, ''));
+      broadcastUpdate({ musicTitle: file.name, musicFile: audioUrl });
     }
   };
 
+  // Toggle Musik
   const togglePlayMusic = () => {
-    if (bannerData.musicFile) {
-      if (!bannerData.isPlayingMusic) {
-        if (!audioRef.current) {
-          audioRef.current = new Audio(bannerData.musicFile);
-          audioRef.current.onended = () => {
-            setBannerData((prev) => ({ ...prev, isPlayingMusic: false }));
-          };
-        }
-        audioRef.current.play();
-      } else {
-        if (audioRef.current) audioRef.current.pause();
-      }
-    }
-    const nextPlayState = !bannerData.isPlayingMusic;
-    setBannerData((prev) => ({ ...prev, isPlayingMusic: nextPlayState }));
-    socket.emit('toggle_music', nextPlayState);
-  };
-
-  const toggleVisualizerType = (e) => {
-    e.stopPropagation();
-    const nextType = bannerData.musicVisualizerType === 'bars' ? 'disc' : 'bars';
-    const updated = { ...bannerData, musicVisualizerType: nextType };
-    setBannerData(updated);
-    broadcastUpdate(updated, colSpan, rowSpan, currentPlan, userProfile);
-  };
-
-  const handleAddSocial = () => {
-    const maxSocials = getMaxSocials();
-    if (bannerData.socials.length >= maxSocials) {
-      alert(`Batas maksimal paket ${currentPlan} adalah ${maxSocials} icon.`);
-      return;
-    }
-    if (!newSocialIcon || !newSocialUrl) {
-      alert('Pilih icon medsos dan cantumkan URL tautan.');
-      return;
-    }
-    const updatedSocials = [
-      ...bannerData.socials,
-      {
-        id: Date.now(),
-        icon: newSocialIcon,
-        url: newSocialUrl.startsWith('http') ? newSocialUrl : `https://${newSocialUrl}`,
-      },
-    ];
-    const updatedBanner = { ...bannerData, socials: updatedSocials };
-    setBannerData(updatedBanner);
-    setIsAddSocialOpen(false);
-    setNewSocialIcon(null);
-    setNewSocialUrl('');
-    broadcastUpdate(updatedBanner, colSpan, rowSpan, currentPlan, userProfile);
-  };
-
-  const handleProceedRent = () => {
-    if (isFreeSlot) {
-      applyBannerChanges();
+    if (!audioRef.current) return;
+    if (isPlayingMusic) {
+      audioRef.current.pause();
+      setIsPlayingMusic(false);
     } else {
-      setIsPaymentOpen(true);
+      audioRef.current.play();
+      setIsPlayingMusic(true);
     }
   };
 
-  const applyBannerChanges = () => {
-    const bannerTitle = inputName.trim() ? inputName : userProfile.name;
-    const updatedBanner = {
-      ...bannerData,
-      name: bannerTitle,
-      image: inputImage || bannerData.image,
-      link: inputLink.trim() ? inputLink : 'https://linktujuankamu',
-    };
+  // Auto-Save Nama Profil (Timer 5 Detik)
+  const handleProfileNameChange = (e) => {
+    const val = e.target.value;
+    setTempProfileName(val);
+    setShowSaveBtn(true);
 
-    const newHistoryItem = {
-      id: Date.now(),
-      name: bannerTitle,
-      size: `${colSpan}x${rowSpan} (${totalSlotsUsed} Slot${isFreeSlot ? ' - Gratis' : ''})`,
-      date: 'Hari ini',
-    };
-    const updatedHistory = [newHistoryItem, ...uploadedBanners];
-
-    setBannerData(updatedBanner);
-    setUploadedBanners(updatedHistory);
-    setIsOccupied(true);
-    setIsPaymentOpen(false);
-    setIsModalOpen(false);
-
-    broadcastUpdate(updatedBanner, colSpan, rowSpan, currentPlan, userProfile);
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => {
+      saveProfile(val, tempAvatar);
+    }, 5000);
   };
 
-  const handleConfirmPayment = () => {
-    setIsProcessingPay(true);
-    setTimeout(() => {
-      setIsProcessingPay(false);
-      applyBannerChanges();
-    }, 1100);
+  // Simpan Profil Manual / Auto
+  const saveProfile = (nameToSave = tempProfileName, avatarToSave = tempAvatar) => {
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    const updated = { ...userProfile, name: nameToSave, avatar: avatarToSave };
+    setUserProfile(updated);
+    setShowSaveBtn(false);
+    broadcastUpdate({ userProfile: updated });
   };
 
-  const handleBannerClick = () => {
-    if (bannerData.link) {
-      socket.emit('click_banner');
-      window.open(bannerData.link, '_blank');
-    }
+  // Broadcast Perubahan via Socket.io
+  const broadcastUpdate = (patch) => {
+    socket.emit('update_billboard', patch);
+  };
+
+  // Ubah Rasio Grid Banner
+  const handleRatioChange = (ratio, col, row) => {
+    setSelectedRatio(ratio);
+    setColSpan(col);
+    setRowSpan(row);
+    broadcastUpdate({ colSpan: col, rowSpan: row });
+  };
+
+  // Ganti Tier Langganan
+  const handlePlanSelect = (tier) => {
+    setCurrentPlan(tier);
+    broadcastUpdate({ currentPlan: tier });
   };
 
   return (
-    <div className="min-h-screen bg-[#070a10] text-[#f1f5f9] flex flex-col items-center p-4 md:p-8 select-none relative overflow-x-hidden font-sans">
-      
-      {/* Header Bar */}
-      <header className="w-full max-w-md md:max-w-3xl lg:max-w-5xl flex items-center justify-between py-3.5 px-3 border-b border-white/[0.06] backdrop-blur-xl relative z-30">
-        
-        {/* SISI KIRI: MENU + [LOGO] PROMOTION [PLAN] */}
-        <div className="flex items-center gap-3">
-          <button 
-            onClick={() => setIsMenuOpen(true)}
-            className="w-10 h-10 rounded-2xl bg-[#0d131f]/80 backdrop-blur-xl border border-white/[0.08] flex items-center justify-center text-slate-300 hover:text-white hover:border-violet-500/40 active:scale-95 transition-all duration-200 shadow-sm"
-          >
-            <Menu className="w-5 h-5" />
-          </button>
+    <div className="min-h-screen bg-[#07090e] text-zinc-100 flex flex-col items-center p-4 selection:bg-[#7c3aed] selection:text-white">
+      {/* Background Glows */}
+      <div className="fixed top-[-10%] left-[20%] w-[350px] h-[350px] bg-violet-600/15 rounded-full blur-[120px] pointer-events-none" />
+      <div className="fixed bottom-[-10%] right-[15%] w-[400px] h-[400px] bg-blue-600/15 rounded-full blur-[140px] pointer-events-none" />
 
-          <div className={`flex items-center gap-2.5 px-3 py-1.5 rounded-2xl backdrop-blur-2xl border transition-all duration-300 shadow-md ${
-            currentPlan === 'Basic'
-              ? 'bg-[#0f1523]/80 border-white/[0.08]'
-              : currentPlan === 'Pro'
-              ? 'bg-gradient-to-r from-violet-950/40 via-cyan-950/30 to-blue-950/40 border-cyan-400/30 shadow-[0_0_20px_rgba(6,182,212,0.15)]'
-              : 'bg-gradient-to-r from-amber-950/40 via-yellow-950/30 to-amber-950/40 border-amber-400/30 shadow-[0_0_24px_rgba(245,158,11,0.2)]'
-          }`}>
-            <img 
-              src="/logo.png" 
-              alt="Logo" 
-              onError={(e) => { e.target.style.display = 'none'; }}
-              className="w-6 h-6 object-contain drop-shadow-[0_0_8px_rgba(16,185,129,0.3)]"
-            />
-            <div className="text-sm font-extrabold tracking-tight flex items-center gap-2 select-none">
-              <span className="text-slate-100">ProMotion</span>
-              {currentPlan === 'Basic' && (
-                <span className="text-[10px] tracking-wider uppercase font-semibold text-slate-400 bg-white/[0.06] px-2 py-0.5 rounded-md border border-white/[0.06]">
-                  Basic
-                </span>
-              )}
-              {currentPlan === 'Pro' && (
-                <span className="text-[10px] tracking-wider uppercase font-bold text-cyan-300 bg-cyan-500/10 px-2 py-0.5 rounded-md border border-cyan-400/30 flex items-center gap-1 shadow-[0_0_10px_rgba(6,182,212,0.2)]">
-                  <Gem className="w-3 h-3 text-cyan-400" />
-                  Pro
-                </span>
-              )}
-              {currentPlan === 'Super' && (
-                <span className="text-[10px] tracking-wider uppercase font-extrabold text-amber-300 bg-amber-500/15 px-2 py-0.5 rounded-md border border-amber-400/30 flex items-center gap-1 shadow-[0_0_12px_rgba(245,158,11,0.25)]">
-                  <Sparkles className="w-3 h-3 text-amber-300" />
-                  Super
-                </span>
-              )}
-            </div>
+      {/* Top Header / Bar */}
+      <header className="w-full max-w-md flex items-center justify-between py-4 px-2 z-10">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-[#7c3aed] to-[#3b82f6] flex items-center justify-center shadow-lg shadow-violet-500/30">
+            <Sparkles className="w-4 h-4 text-white" />
           </div>
+          <span className="font-bold tracking-wider text-sm bg-gradient-to-r from-violet-400 to-blue-400 bg-clip-text text-transparent">
+            PROMOTION
+          </span>
         </div>
 
-        {/* SISI KANAN: STATUS SINKRON WEBSOCKET & MASUK/DAFTAR */}
-        <div className="flex items-center gap-2">
-          <div 
-            title={isConnected ? 'Realtime WebSocket Aktif' : 'Menghubungkan ke Realtime...'}
-            className="flex items-center gap-1 px-2 py-1 rounded-xl bg-white/[0.03] border border-white/[0.06]"
-          >
-            {isConnected ? (
-              <Wifi className="w-3.5 h-3.5 text-emerald-400 animate-pulse" />
-            ) : (
-              <WifiOff className="w-3.5 h-3.5 text-rose-400" />
-            )}
-            <span className="text-[9px] font-mono text-slate-400 hidden sm:inline">
-              {isConnected ? 'LIVE' : 'OFFLINE'}
-            </span>
+        {/* Live Status Badge */}
+        <div className="flex items-center gap-3">
+          <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold border backdrop-blur-md transition-all ${
+            isConnected 
+              ? 'bg-emerald-950/60 text-emerald-400 border-emerald-500/30 shadow-[0_0_12px_rgba(16,185,129,0.2)]'
+              : 'bg-rose-950/60 text-rose-400 border-rose-500/30'
+          }`}>
+            {isConnected ? <Wifi className="w-3 h-3 text-emerald-400 animate-pulse" /> : <WifiOff className="w-3 h-3 text-rose-400" />}
+            <span>{isConnected ? 'LIVE' : 'OFFLINE'}</span>
           </div>
 
-          <button
-            onClick={() => { setAuthMode('login'); setIsAuthModalOpen(true); }}
-            className="px-3.5 py-1.5 text-xs font-semibold rounded-2xl bg-white/[0.03] hover:bg-violet-500/10 border border-white/[0.08] hover:border-violet-500/30 text-slate-300 hover:text-violet-300 backdrop-blur-xl transition-all duration-200 active:scale-95 flex items-center gap-1.5 shadow-sm"
+          <button 
+            onClick={() => setIsMenuOpen(!isMenuOpen)}
+            className="p-2 rounded-xl bg-zinc-900/80 border border-zinc-800 text-zinc-300 hover:text-white backdrop-blur-md"
           >
-            <LogIn className="w-3.5 h-3.5 text-violet-400" />
-            <span>Masuk / Daftar</span>
+            <Sliders className="w-4 h-4" />
           </button>
         </div>
       </header>
 
-      {/* Hero Description */}
-      <div className="w-full max-w-md md:max-w-2xl text-center my-4 px-2 flex flex-col items-center">
-        <div className="inline-block px-3 py-1 rounded-full bg-emerald-950/20 border border-emerald-500/20 text-emerald-400 text-xs font-medium mb-2 shadow-[0_0_12px_rgba(16,185,129,0.1)]">
-          Papan Promosi Komunitas Digital
-        </div>
-        <p className="text-slate-400 text-xs md:text-sm leading-relaxed mb-2.5">
-          Pasang banner kreasi Anda, sesuaikan grid fleksibel, dan hubungkan media sosial secara langsung.
-        </p>
-
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#0c121d]/90 border border-emerald-500/20 shadow-[0_0_14px_rgba(16,185,129,0.1)] backdrop-blur-md">
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
-          <span className="text-[11px] font-mono font-medium text-emerald-400">
-            Slot {isOccupied ? totalSlotsUsed : '0'}/100
-          </span>
-        </div>
-      </div>
-
-      {/* Grid Canvas Wrapper */}
-      <div className="w-full max-w-md md:max-w-3xl lg:max-w-5xl bg-[#090e17]/70 border border-white/[0.06] rounded-3xl p-3 md:p-5 shadow-2xl backdrop-blur-2xl relative">
-        <div className="grid grid-cols-5 md:grid-cols-8 lg:grid-cols-10 gap-2 md:gap-3 auto-rows-[64px] md:auto-rows-[76px] relative">
-          
-          {/* BANNER UTAMA */}
-          {isOccupied ? (
-            <div
-              style={{
-                gridColumn: `span ${colSpan}`,
-                gridRow: `span ${rowSpan}`,
-              }}
-              className={`relative rounded-2xl flex flex-col justify-between overflow-hidden transition-all duration-300 border border-emerald-500/30 bg-gradient-to-br from-[#101726]/90 to-[#0a0f1a]/95 backdrop-blur-xl shadow-[0_8px_32px_rgba(0,0,0,0.5)] group ${
-                rowSpan === 1 ? 'p-1' : 'p-1.5'
-              }`}
-            >
-              <span className={`absolute top-1 left-1 z-20 px-1.5 py-0.5 rounded bg-black/80 backdrop-blur-md border border-white/[0.08] font-mono text-emerald-400 ${
-                rowSpan === 1 ? 'text-[7px]' : 'text-[9px]'
-              }`}>
-                {colSpan}x{rowSpan} ({totalSlotsUsed} Slot)
-              </span>
-
-              <button
-                onClick={() => setIsModalOpen(true)}
-                className={`absolute top-1 right-1 z-20 rounded-full bg-white/[0.08] hover:bg-white/[0.16] active:scale-90 flex items-center justify-center text-slate-200 border border-white/[0.08] transition-transform ${
-                  rowSpan === 1 ? 'w-4 h-4' : 'w-6 h-6'
-                }`}
-              >
-                <Edit3 className={rowSpan === 1 ? 'w-2.5 h-2.5' : 'w-3 h-3'} />
-              </button>
-
-              <div 
-                onClick={handleBannerClick}
-                className="w-full flex-1 rounded-xl overflow-hidden bg-black/40 relative flex items-center justify-center cursor-pointer active:opacity-90 transition-opacity min-h-0"
-              >
-                {bannerData.image ? (
-                  <img
-                    src={bannerData.image}
-                    alt="Banner Media"
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <div className="flex flex-col items-center justify-center text-slate-500 gap-0.5 p-1">
-                    <span className={rowSpan === 1 ? 'text-[8px]' : 'text-xs'}>Preview Media</span>
-                  </div>
-                )}
-              </div>
-
-              {/* Bawah Banner */}
-              <div className={`w-full flex flex-col items-center justify-center ${rowSpan === 1 ? 'pt-0.5 pb-0' : 'pt-1.5 pb-0.5 px-1'}`}>
-                <div className="flex items-center justify-center gap-1.5 max-w-full overflow-hidden">
-                  {rowSpan > 1 && (
-                    <img 
-                      src={userProfile.avatar} 
-                      alt="Avatar" 
-                      className={`rounded-full object-cover border border-white/[0.1] shrink-0 ${colSpan === 1 ? 'w-2.5 h-2.5' : 'w-4 h-4'}`}
-                    />
-                  )}
-                  <span 
-                    style={{ fontFamily: bannerData.brandFont ? bannerData.brandFont : 'inherit' }}
-                    className={`text-center font-bold tracking-tight truncate max-w-full ${
-                      rowSpan === 1 ? 'text-[11px] leading-tight text-emerald-400' : colSpan === 1 ? 'text-[8px]' : 'text-[12px] md:text-sm text-slate-200'
-                    } ${
-                      isMotionSuper
-                        ? 'bg-gradient-to-r from-emerald-400 via-violet-300 to-amber-300 bg-[length:200%_auto] animate-[shimmer_3s_linear_infinite] bg-clip-text text-transparent'
-                        : ''
-                    }`}
-                  >
-                    {bannerData.name}
-                  </span>
-                </div>
-
-                {/* Plugin Musik Mini */}
-                <div 
-                  onClick={togglePlayMusic}
-                  className={`rounded-full bg-white/[0.04] border border-white/[0.08] backdrop-blur-md flex items-center cursor-pointer hover:bg-white/[0.08] active:scale-95 transition-all ${
-                    rowSpan === 1 ? 'mt-0.5 px-2 py-0.5 gap-1.5' : 'mt-1 px-2.5 py-0.5 gap-2'
-                  }`}
-                >
-                  <div className={`flex items-center justify-center text-emerald-400 ${rowSpan === 1 ? 'w-2.5 h-2.5' : 'w-3.5 h-3.5'}`}>
-                    {bannerData.isPlayingMusic ? (
-                      <Pause className="w-2.5 h-2.5 fill-current" />
-                    ) : (
-                      <Play className="w-2.5 h-2.5 fill-current" />
-                    )}
-                  </div>
-
-                  <span className={`text-slate-300 truncate font-medium ${rowSpan === 1 ? 'text-[9px] max-w-[90px]' : 'text-[10px] max-w-[110px]'}`}>
-                    {bannerData.musicTitle}
-                  </span>
-
-                  <div 
-                    onClick={toggleVisualizerType}
-                    title="Ubah visualizer"
-                    className="flex items-center justify-center cursor-pointer"
-                  >
-                    {bannerData.musicVisualizerType === 'bars' ? (
-                      <div className={`flex items-end ${rowSpan === 1 ? 'gap-[1px] h-2' : 'gap-[2px] h-2.5'}`}>
-                        <span className={`w-[2px] bg-emerald-400 rounded-full transition-all ${bannerData.isPlayingMusic ? 'h-full animate-pulse' : 'h-1'}`} />
-                        <span className={`w-[2px] bg-emerald-400 rounded-full transition-all ${bannerData.isPlayingMusic ? 'h-2/3 animate-ping' : 'h-1'}`} />
-                      </div>
-                    ) : (
-                      <div className={`rounded-full border border-emerald-400 bg-black flex items-center justify-center ${
-                        rowSpan === 1 ? 'w-2.5 h-2.5' : 'w-3 h-3'
-                      } ${bannerData.isPlayingMusic ? 'animate-[spin_2s_linear_infinite]' : ''}`}>
-                        <div className={`rounded-full bg-emerald-400 ${rowSpan === 1 ? 'w-0.5 h-0.5' : 'w-1 h-1'}`} />
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Medsos Dinamis */}
-                {rowSpan > 1 && (
-                  <div className="flex items-center justify-center flex-wrap gap-1 mt-1">
-                    {bannerData.socials.map((social) => (
-                      <a
-                        key={social.id}
-                        href={social.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="relative flex items-center justify-center active:scale-90 transition-transform"
-                      >
-                        <img
-                          src={social.icon}
-                          alt="Social Icon"
-                          className="w-3.5 h-3.5 rounded-full object-cover bg-black/60 p-[0.5px]"
-                        />
-                      </a>
-                    ))}
-
-                    {bannerData.socials.length < getMaxSocials() && (
-                      <button
-                        type="button"
-                        onClick={() => setIsAddSocialOpen(true)}
-                        className="w-3.5 h-3.5 rounded-full bg-white/[0.06] hover:bg-emerald-500/20 border border-white/[0.1] text-slate-300 hover:text-emerald-400 flex items-center justify-center transition active:scale-90"
-                      >
-                        <Plus className="w-2.5 h-2.5" />
-                      </button>
-                    )}
-                  </div>
-                )}
-
-              </div>
-
-              {/* Handle Resize Sudut */}
-              <div
-                onTouchStart={handleTouchStart}
-                onTouchMove={handleTouchMove}
-                onTouchEnd={handleTouchEnd}
-                className="absolute -bottom-1 -right-1 w-6 h-6 flex items-center justify-center cursor-nwse-resize z-30 select-none touch-none active:scale-125 transition-transform"
-                title="Tarik untuk sesuaikan slot"
-              >
-                <div className="w-2.5 h-2.5 border-r-2 border-b-2 border-emerald-400/80 rounded-br-sm" />
-              </div>
-            </div>
-          ) : (
-            <div
-              onClick={() => setIsModalOpen(true)}
-              className="rounded-2xl border border-dashed border-emerald-500/30 bg-[#0c121d]/70 hover:bg-[#121c2d]/80 hover:border-emerald-400/50 flex flex-col items-center justify-center cursor-pointer transition-all duration-200 group active:scale-95"
-            >
-              <Plus className="w-5 h-5 text-emerald-400 group-hover:scale-110 transition-transform" />
-              <span className="text-[9px] text-emerald-400/80 font-mono mt-0.5 font-medium">#1 Buka</span>
-            </div>
-          )}
-
-          {/* Sisa Grid Slots */}
-          {Array.from({ length: Math.max(0, 100 - (isOccupied ? totalSlotsUsed : 1)) }).map((_, i) => {
-            const slotNumber = (isOccupied ? totalSlotsUsed : 1) + i + 1;
-            return (
-              <div
-                key={slotNumber}
-                onClick={() => setIsModalOpen(true)}
-                className="rounded-2xl border border-white/[0.03] bg-[#0b1019]/50 hover:bg-[#111826]/60 hover:border-violet-500/20 flex flex-col items-center justify-center cursor-pointer transition-all duration-200 group active:scale-95"
-              >
-                <Plus className="w-3.5 h-3.5 text-slate-600 group-hover:text-violet-400 transition-colors" />
-                <span className="text-[8px] text-slate-600 group-hover:text-slate-400 font-mono mt-0.5">#{slotNumber}</span>
-              </div>
-            );
-          })}
-
-        </div>
-      </div>
-      {/* DRAWER MENU UTAMA */}
-      {isMenuOpen && (
-        <div className="fixed inset-0 z-50 flex">
-          <div 
-            onClick={() => setIsMenuOpen(false)}
-            className="fixed inset-0 bg-black/70 backdrop-blur-md transition-opacity duration-300"
-          />
-
-          <div className="relative w-88 max-w-[90vw] h-full bg-[#0a0f18]/95 backdrop-blur-2xl border-r border-white/[0.08] p-5 flex flex-col justify-between shadow-2xl z-10 animate-[slideRight_0.3s_cubic-bezier(0.16,1,0.3,1)]">
-            <div className="flex flex-col gap-4 overflow-y-auto pr-1">
-              
-              <div className="flex items-center justify-between pb-3 border-b border-white/[0.08]">
-                <div className="flex items-center gap-2">
-                  <Layers className="w-4 h-4 text-violet-400" />
-                  <span className="font-bold text-sm tracking-wide text-slate-200">Panel Kontrol</span>
-                </div>
-                <button
-                  onClick={() => setIsMenuOpen(false)}
-                  className="w-8 h-8 rounded-full bg-white/[0.05] hover:bg-white/[0.1] flex items-center justify-center text-slate-400 hover:text-white transition active:scale-90"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-
-              {/* Tab Navigasi */}
-              <div className="grid grid-cols-3 gap-1.5 p-1 bg-[#060910] rounded-2xl border border-white/[0.06]">
-                {[
-                  { key: 'slots', label: 'Slots' },
-                  { key: 'subscription', label: 'Langganan' },
-                  { key: 'plugin', label: 'Plugin' },
-                ].map((item) => (
-                  <button
-                    key={item.key}
-                    onClick={() => setActiveTab(item.key)}
-                    className={`py-2 px-2 rounded-xl text-[11px] font-semibold transition-all duration-200 active:scale-95 ${
-                      activeTab === item.key 
-                        ? 'bg-violet-500/20 text-violet-300 border border-violet-500/30 shadow-sm' 
-                        : 'text-slate-400 hover:text-white'
-                    }`}
-                  >
-                    {item.label}
-                  </button>
-                ))}
-              </div>
-
-              {/* TAB 1: SLOTS */}
-              {activeTab === 'slots' && (
-                <div className="flex flex-col gap-3 text-left">
-                  <div className="p-3.5 rounded-2xl bg-white/[0.02] border border-white/[0.06] backdrop-blur-xl flex flex-col gap-1.5 shadow-sm">
-                    <span className="text-xs font-bold text-slate-200">Status Grid Billboard</span>
-                    <span className="text-[11px] text-slate-400">Dimensi Grid: {colSpan} Kolom x {rowSpan} Baris</span>
-                    <span className="text-[11px] text-emerald-400 font-medium">Kapasitas: {totalSlotsUsed} Slot {isFreeSlot ? '(Gratis)' : ''}</span>
-                  </div>
-                  <button
-                    onClick={() => { setIsMenuOpen(false); setIsModalOpen(true); }}
-                    className="w-full py-2.5 rounded-2xl bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 text-xs font-bold hover:bg-emerald-500/30 active:scale-95 transition flex items-center justify-center gap-1.5"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>Atur / Sewa Slot</span>
-                  </button>
-                </div>
-              )}
-
-              {/* TAB 2: FULL NAVIGASI LANGGANAN */}
-              {activeTab === 'subscription' && (
-                <div className="flex flex-col gap-3 text-left">
-                  <div className="flex items-center justify-between pb-1">
-                    <span className="text-xs font-bold text-slate-300">Tingkat Langganan Akun</span>
-                    <span className="text-[10px] text-emerald-400 font-mono font-medium">Status: Motion {currentPlan}</span>
-                  </div>
-                  
-                  {/* 1. Motion Basic */}
-                  <div 
-                    onClick={() => { 
-                      setCurrentPlan('Basic'); 
-                      broadcastUpdate(bannerData, colSpan, rowSpan, 'Basic', userProfile);
-                    }}
-                    className={`p-3.5 rounded-2xl cursor-pointer transition-all duration-300 border backdrop-blur-xl relative ${
-                      currentPlan === 'Basic'
-                        ? 'bg-gradient-to-br from-slate-800/40 via-slate-900/60 to-black/50 border-slate-500/40 shadow-sm'
-                        : 'bg-white/[0.02] border-white/[0.05] hover:border-white/[0.12]'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <ShieldCheck className="w-4 h-4 text-slate-400" />
-                        <span className="text-xs font-bold text-slate-200">1. Motion Basic</span>
-                      </div>
-                      {currentPlan === 'Basic' && (
-                        <span className="text-[9px] px-2 py-0.5 rounded-full bg-white/[0.1] text-slate-200 font-bold border border-white/[0.1]">
-                          AKTIF
-                        </span>
-                      )}
-                    </div>
-                    <ul className="text-[10px] text-slate-400 mt-2.5 space-y-1 list-disc list-inside leading-relaxed">
-                      <li>Badge ProMotion Basic di bilah utama</li>
-                      <li>Slot gratis 1x1 permanen</li>
-                      <li>Maksimal 2 icon media sosial</li>
-                      <li>Pemutar audio lo-fi standar</li>
-                    </ul>
-                  </div>
-
-                  {/* 2. Motion Pro */}
-                  <div 
-                    onClick={() => { 
-                      setCurrentPlan('Pro'); 
-                      broadcastUpdate(bannerData, colSpan, rowSpan, 'Pro', userProfile);
-                    }}
-                    className={`p-3.5 rounded-2xl cursor-pointer transition-all duration-300 border backdrop-blur-xl relative overflow-hidden ${
-                      currentPlan === 'Pro'
-                        ? 'bg-gradient-to-br from-cyan-950/30 via-[#0d1627]/70 to-[#0a1120]/80 border-cyan-400/50 shadow-[0_0_24px_rgba(6,182,212,0.18)]'
-                        : 'bg-white/[0.02] border-white/[0.05] hover:border-cyan-500/20'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Gem className="w-4 h-4 text-cyan-400" />
-                        <span className="text-xs font-bold text-cyan-300">2. Motion Pro</span>
-                      </div>
-                      {currentPlan === 'Pro' && (
-                        <span className="text-[9px] px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 font-bold border border-cyan-400/30">
-                          AKTIF
-                        </span>
-                      )}
-                    </div>
-                    <ul className="text-[10px] text-slate-300 mt-2.5 space-y-1 list-disc list-inside leading-relaxed">
-                      <li>Badge ProMotion Pro dengan aksen kristal</li>
-                      <li>Kapasitas hingga 5 icon media sosial</li>
-                      <li>Border slot neon cyan-blue dinamis</li>
-                      <li>Akses visualizer piringan vinyl audio</li>
-                    </ul>
-                  </div>
-
-                  {/* 3. Motion Super */}
-                  <div 
-                    onClick={() => { 
-                      setCurrentPlan('Super'); 
-                      broadcastUpdate(bannerData, colSpan, rowSpan, 'Super', userProfile);
-                    }}
-                    className={`p-3.5 rounded-2xl cursor-pointer transition-all duration-300 border backdrop-blur-xl relative overflow-hidden ${
-                      currentPlan === 'Super'
-                        ? 'bg-gradient-to-br from-amber-950/35 via-[#1b1509]/70 to-[#120e06]/80 border-amber-400/50 shadow-[0_0_28px_rgba(245,158,11,0.22)]'
-                        : 'bg-white/[0.02] border-white/[0.05] hover:border-amber-500/20'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Sparkles className="w-4 h-4 text-amber-300" />
-                        <span className="text-xs font-bold text-amber-300">3. Motion Super</span>
-                      </div>
-                      {currentPlan === 'Super' && (
-                        <span className="text-[9px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-bold border border-amber-400/40">
-                          AKTIF
-                        </span>
-                      )}
-                    </div>
-                    <ul className="text-[10px] text-amber-200/90 mt-2.5 space-y-1 list-disc list-inside leading-relaxed">
-                      <li>Badge ProMotion Super emas bersinar penuh</li>
-                      <li>Unlimited tautan icon media sosial</li>
-                      <li>Animasi teks shimmer gradasi bergerak</li>
-                      <li>Efek aura neon glow di icon media sosial</li>
-                    </ul>
-                  </div>
-                </div>
-              )}
-
-              {/* TAB 3: PLUGIN */}
-              {activeTab === 'plugin' && (
-                <div className="flex flex-col gap-3 text-left">
-                  <div className="p-4 rounded-3xl bg-white/[0.02] border border-white/[0.06] backdrop-blur-2xl shadow-xl flex flex-col gap-3.5">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Music className="w-4 h-4 text-violet-400" />
-                        <span className="text-xs font-bold text-slate-200">Audio Latar Belakang</span>
-                      </div>
-                      <span className="text-[9px] px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-mono">
-                        Active
-                      </span>
-                    </div>
-
-                    <input 
-                      type="text" 
-                      value={bannerData.musicTitle}
-                      onChange={(e) => {
-                        const updated = { ...bannerData, musicTitle: e.target.value };
-                        setBannerData(updated);
-                        broadcastUpdate(updated, colSpan, rowSpan, currentPlan, userProfile);
-                      }}
-                      className="w-full bg-[#060910] border border-white/[0.08] rounded-2xl px-3.5 py-2.5 text-xs text-slate-200 focus:outline-none focus:border-violet-500/50 backdrop-blur-md"
-                    />
-
-                    <div className="flex items-center justify-between pt-1">
-                      <span className="text-xs text-slate-400">Gaya Visualizer:</span>
-                      <button 
-                        onClick={toggleVisualizerType}
-                        className="px-3 py-1.5 rounded-xl bg-white/[0.05] border border-white/[0.08] text-xs font-semibold text-emerald-400 hover:bg-white/[0.08] active:scale-95 transition flex items-center gap-1.5"
-                      >
-                        {bannerData.musicVisualizerType === 'bars' ? (
-                          <>
-                            <Sliders className="w-3.5 h-3.5" />
-                            <span>Equalizer Bar</span>
-                          </>
-                        ) : (
-                          <>
-                            <Disc3 className="w-3.5 h-3.5" />
-                            <span>Vinyl Disc</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-            </div>
-
-            {/* POJOK BAWAH DRAWER */}
-            <div className="pt-3 border-t border-white/[0.08] flex items-center justify-between p-2 rounded-2xl bg-white/[0.02]">
-              <div className="flex items-center gap-2.5 truncate">
-                <div className="relative shrink-0">
-                  <img 
-                    src={userProfile.avatar} 
-                    alt="Avatar" 
-                    className="w-9 h-9 rounded-2xl object-cover border border-white/[0.1] shadow-md" 
-                  />
-                  <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-400 rounded-full border-2 border-[#0a0f18]" />
-                </div>
-                <div className="flex flex-col text-left truncate">
-                  <span className="text-xs font-bold text-slate-200 truncate">{userProfile.name}</span>
-                  <span className="text-[10px] text-emerald-400 font-mono font-medium">Akun Terdaftar</span>
-                </div>
-              </div>
-
-              <button
-                onClick={() => { setIsMenuOpen(false); setIsProfileModalOpen(true); }}
-                className="w-8 h-8 rounded-xl bg-white/[0.04] hover:bg-violet-500/15 border border-white/[0.08] hover:border-violet-500/30 text-slate-400 hover:text-violet-300 flex items-center justify-center transition active:scale-90"
-                title="Pengaturan Profil"
-              >
-                <Settings className="w-4 h-4" />
-              </button>
-            </div>
-
-          </div>
-        </div>
-      )}
-
-      {/* MODAL FULL PENGATURAN PROFIL */}
-      {isProfileModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-xl animate-fadeIn">
-          <div className="w-full max-w-md rounded-[32px] bg-[#0c121d]/95 border border-white/[0.08] p-6 shadow-2xl flex flex-col gap-4 text-left max-h-[90vh] overflow-y-auto">
-            
-            <div className="flex items-center justify-between pb-2 border-b border-white/[0.08]">
-              <div className="flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-emerald-400" />
-                <span className="text-sm font-bold text-slate-200">Pengaturan Profil Pengguna</span>
-              </div>
-              <button
-                onClick={() => setIsProfileModalOpen(false)}
-                className="w-7 h-7 rounded-full bg-white/[0.05] text-slate-400 hover:text-white flex items-center justify-center text-xs"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            {/* Foto Profil & Nama Brand */}
-            <div className="p-3.5 rounded-2xl bg-white/[0.02] border border-white/[0.06] flex flex-col gap-3">
-              <span className="text-xs font-bold text-slate-200">1. Foto Profil & Identitas Brand</span>
-              <div className="flex items-center gap-3">
-                <label className="relative cursor-pointer group shrink-0">
-                  <input type="file" accept="image/png,image/jpeg,image/webp" onChange={handleAvatarFileSelect} className="hidden" />
-                  <div className="w-12 h-12 rounded-2xl overflow-hidden border border-white/[0.1] shadow-sm relative">
-                    <img 
-                      src={tempAvatar} 
-                      alt="Avatar" 
-                      style={{ transform: `scale(${zoomLevel}) rotate(${rotateDeg}deg)` }}
-                      className="w-full h-full object-cover transition-transform duration-200"
-                    />
-                  </div>
-                  <span className="absolute inset-0 flex items-center justify-center bg-black/60 rounded-2xl opacity-0 group-hover:opacity-100 text-[9px] text-white font-medium">
-                    Ubah
-                  </span>
-                </label>
-                <div className="flex-1">
-                  <label className="text-[10px] text-slate-400 block mb-1">Nama Brand / Profil</label>
-                  <input 
-                    type="text" 
-                    value={tempProfileName}
-                    onChange={(e) => {
-                      setTempProfileName(e.target.value);
-                      triggerAutoSaveTimer();
-                    }}
-                    className="w-full bg-[#060910] border border-white/[0.08] rounded-xl px-2.5 py-2 text-xs text-slate-200 focus:outline-none focus:border-violet-500/50"
-                  />
-                </div>
-              </div>
-
-              {/* Tombol Simpan Otomatis */}
-              <div className={`transition-all duration-500 overflow-hidden ${showSaveBtn ? 'max-h-14 opacity-100' : 'max-h-0 opacity-0 pointer-events-none'}`}>
-                <button
-                  onClick={handleSaveProfile}
-                  className="w-full py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black text-xs font-bold flex items-center justify-center gap-2 shadow-lg active:scale-95 transition"
-                >
-                  <Save className="w-3.5 h-3.5" />
-                  <span>Simpan Perubahan Profil</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Custom Font & Musik */}
-            <div className="p-3.5 rounded-2xl bg-white/[0.02] border border-white/[0.06] flex flex-col gap-2.5">
-              <span className="text-xs font-bold text-slate-200">2. Custom Upload (Font & Musik)</span>
-              
-              <label className="w-full py-2.5 px-3.5 rounded-2xl bg-emerald-500/10 hover:bg-emerald-500/15 border border-emerald-500/20 text-emerald-300 text-xs font-semibold flex items-center justify-between cursor-pointer active:scale-95 transition">
-                <div className="flex items-center gap-2">
-                  <Type className="w-4 h-4 text-emerald-400" />
-                  <span>Upload Font (.ttf/.otf)</span>
-                </div>
-                <Upload className="w-4 h-4 text-emerald-400" />
-                <input type="file" accept=".ttf,.otf" onChange={handleFontUpload} className="hidden" />
-              </label>
-
-              <label className="w-full py-2.5 px-3.5 rounded-2xl bg-violet-600/10 hover:bg-violet-600/15 border border-violet-500/20 text-violet-300 text-xs font-semibold flex items-center justify-between cursor-pointer active:scale-95 transition">
-                <div className="flex items-center gap-2">
-                  <Music className="w-4 h-4 text-violet-400" />
-                  <span>Upload Music (.mp3)</span>
-                </div>
-                <Upload className="w-4 h-4 text-violet-400" />
-                <input type="file" accept=".mp3,audio/mpeg" onChange={handleMusicUpload} className="hidden" />
-              </label>
-            </div>
-
-            {/* Riwayat Banner */}
-            <div className="p-3.5 rounded-2xl bg-white/[0.02] border border-white/[0.06] flex flex-col gap-2">
-              <span className="text-xs font-bold text-slate-200">Riwayat Banner Anda</span>
-              <div className="flex flex-col gap-1.5 max-h-24 overflow-y-auto">
-                {uploadedBanners.map((item) => (
-                  <div key={item.id} className="p-2 rounded-xl bg-black/40 border border-white/[0.05] flex items-center justify-between">
-                    <span className="text-[11px] font-semibold text-slate-300 truncate">{item.name}</span>
-                    <span className="px-2 py-0.5 rounded-md bg-emerald-500/15 text-emerald-400 text-[9px] font-mono font-bold">
-                      {item.size}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
+      {/* Main Container */}
+      <main className="w-full max-w-md flex flex-col gap-5 z-10 pb-20">
+        {/* Profile Card */}
+        <div className="relative p-5 rounded-3xl bg-zinc-900/60 border border-zinc-800/80 backdrop-blur-xl shadow-2xl flex flex-col items-center gap-3">
+          <div className="relative group">
+            <img 
+              src={userProfile.avatar} 
+              alt="Avatar" 
+              className="w-20 h-20 rounded-2xl object-cover border-2 border-violet-500/40 p-0.5 shadow-lg shadow-violet-500/20"
+            />
             <button 
-              onClick={() => {
-                localStorage.removeItem('promotion_slot_data_v11');
-                setIsOccupied(false);
-                setIsProfileModalOpen(false);
-              }}
-              className="w-full py-2 rounded-xl bg-rose-500/15 border border-rose-500/25 text-rose-300 text-xs font-semibold hover:bg-rose-500/20 active:scale-95 transition flex items-center justify-center gap-1.5"
+              onClick={() => setCropModalOpen(true)}
+              className="absolute bottom-[-4px] right-[-4px] p-1.5 rounded-lg bg-violet-600 text-white shadow-md hover:bg-violet-500"
             >
-              <Trash2 className="w-3.5 h-3.5" />
-              <span>Reset Data Billboard</span>
+              <Edit2 className="w-3 h-3" />
+            </button>
+          </div>
+
+          <div className="w-full text-center flex flex-col items-center">
+            <input 
+              type="text" 
+              value={tempProfileName}
+              onChange={handleProfileNameChange}
+              className={`text-center font-bold text-lg bg-transparent border-b border-transparent hover:border-zinc-700 focus:border-violet-500 focus:outline-none transition-all px-2 py-0.5 ${fontName ? 'font-brand' : ''}`}
+            />
+            <p className="text-xs text-zinc-400">{userProfile.handle}</p>
+
+            {showSaveBtn && (
+              <button 
+                onClick={() => saveProfile()}
+                className="mt-2 flex items-center gap-1.5 px-3 py-1 rounded-full bg-violet-600 hover:bg-violet-500 text-xs font-medium text-white transition-all shadow-md shadow-violet-600/30"
+              >
+                <Save className="w-3 h-3" /> Simpan Sekarang
+              </button>
+            )}
+          </div>
+
+          {/* Social Links Badge */}
+          <div className="flex flex-wrap items-center justify-center gap-2 mt-1">
+            {socials.map((s) => (
+              <a 
+                key={s.id} 
+                href={s.url} 
+                target="_blank" 
+                rel="noreferrer"
+                className="px-3 py-1 rounded-xl bg-zinc-800/80 border border-zinc-700/60 text-xs text-zinc-300 hover:text-violet-300 hover:border-violet-500/50 flex items-center gap-1.5 transition-all"
+              >
+                {s.name} <ExternalLink className="w-3 h-3 opacity-60" />
+              </a>
+            ))}
+            <button 
+              onClick={() => setIsAddSocialOpen(true)}
+              className="p-1 rounded-xl bg-zinc-800/50 border border-dashed border-zinc-700 text-zinc-400 hover:text-white"
+            >
+              <Plus className="w-3.5 h-3.5" />
             </button>
           </div>
         </div>
-      )}
 
-      {/* MODAL MASUK / DAFTAR AKUN */}
-      {isAuthModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-xl animate-fadeIn">
-          <div className="w-full max-w-xs rounded-[32px] bg-[#0c121d]/95 border border-white/[0.08] p-6 shadow-2xl flex flex-col gap-4 text-left">
-            
-            <div className="flex items-center justify-between pb-2 border-b border-white/[0.08]">
-              <span className="text-sm font-bold text-slate-200">
-                {authMode === 'login' ? 'Masuk ke ProMotion' : 'Buat Akun Baru'}
-              </span>
-              <button
-                onClick={() => setIsAuthModalOpen(false)}
-                className="w-7 h-7 rounded-full bg-white/[0.05] text-slate-400 hover:text-white flex items-center justify-center text-xs"
-              >
-                <X className="w-4 h-4" />
-              </button>
+        {/* Music Player Bar (With Bars Visualizer) */}
+        <div className="p-4 rounded-2xl bg-zinc-900/60 border border-zinc-800/80 backdrop-blur-xl flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-violet-950/60 border border-violet-800/50 flex items-center justify-center text-violet-400">
+              <Disc3 className={`w-5 h-5 ${isPlayingMusic ? 'animate-spin' : ''}`} />
             </div>
-
-            <div className="flex p-1 bg-[#060910] rounded-xl border border-white/[0.06]">
-              <button
-                onClick={() => setAuthMode('login')}
-                className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition ${authMode === 'login' ? 'bg-violet-600 text-white shadow-sm' : 'text-slate-400'}`}
-              >
-                Masuk
-              </button>
-              <button
-                onClick={() => setAuthMode('register')}
-                className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition ${authMode === 'register' ? 'bg-violet-600 text-white shadow-sm' : 'text-slate-400'}`}
-              >
-                Daftar
-              </button>
-            </div>
-
-            <div className="flex flex-col gap-3">
-              <div>
-                <label className="text-[10px] text-slate-400 block mb-1">Email / Username</label>
-                <input 
-                  type="text" 
-                  placeholder="nama@domain.com"
-                  className="w-full bg-[#060910] border border-white/[0.08] rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-violet-500/50"
-                />
-              </div>
-              <div>
-                <label className="text-[10px] text-slate-400 block mb-1">Kata Sandi</label>
-                <input 
-                  type="password" 
-                  placeholder="••••••••"
-                  className="w-full bg-[#060910] border border-white/[0.08] rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-violet-500/50"
-                />
-              </div>
-
-              <button
-                onClick={() => {
-                  alert(authMode === 'login' ? 'Berhasil Masuk!' : 'Akun berhasil terdaftar!');
-                  setIsAuthModalOpen(false);
-                }}
-                className="w-full mt-1 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-500 text-white text-xs font-bold transition shadow-lg active:scale-95"
-              >
-                {authMode === 'login' ? 'Masuk Sekarang' : 'Daftar Akun'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL CROP & ROTATE AVATAR */}
-      {cropModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fadeIn">
-          <div className="w-full max-w-xs rounded-[32px] bg-[#0c121d]/95 border border-white/[0.08] p-5 shadow-2xl flex flex-col items-center gap-4 text-center">
-            <span className="text-sm font-bold text-slate-200">Sesuaikan Foto Profil</span>
-            
-            <div className="w-40 h-40 rounded-full border-2 border-emerald-500/50 overflow-hidden relative flex items-center justify-center bg-black/50 shadow-inner">
-              <img
-                src={rawAvatarImage}
-                alt="Crop Preview"
-                style={{ transform: `scale(${zoomLevel}) rotate(${rotateDeg}deg)` }}
-                className="w-full h-full object-cover transition-transform duration-100"
-              />
-            </div>
-
-            <div className="w-full flex items-center gap-2 px-2">
-              <span className="text-[10px] text-slate-400 font-medium">Zoom</span>
-              <input
-                type="range"
-                min="1"
-                max="2.5"
-                step="0.05"
-                value={zoomLevel}
-                onChange={(e) => setZoomLevel(parseFloat(e.target.value))}
-                className="w-full accent-emerald-500 h-1 bg-white/10 rounded-lg cursor-pointer"
-              />
-            </div>
-
-            <div className="flex items-center gap-3">
-              <button
-                type="button"
-                onClick={() => setRotateDeg((prev) => prev - 90)}
-                className="px-3 py-1.5 rounded-xl bg-white/[0.05] border border-white/[0.08] text-xs text-slate-300 hover:text-white active:scale-95 transition flex items-center gap-1"
-              >
-                <RotateCcw className="w-3.5 h-3.5" />
-                <span>Putar ↺</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setRotateDeg((prev) => prev + 90)}
-                className="px-3 py-1.5 rounded-xl bg-white/[0.05] border border-white/[0.08] text-xs text-slate-300 hover:text-white active:scale-95 transition flex items-center gap-1"
-              >
-                <RotateCw className="w-3.5 h-3.5" />
-                <span>Putar ↻</span>
-              </button>
-            </div>
-
-            <div className="flex items-center gap-2 w-full mt-2">
-              <button
-                type="button"
-                onClick={() => setCropModalOpen(false)}
-                className="flex-1 py-2 rounded-xl bg-white/[0.05] text-slate-300 text-xs font-semibold active:scale-95 transition"
-              >
-                Batal
-              </button>
-              <button
-                type="button"
-                onClick={handleConfirmCrop}
-                className="flex-1 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black text-xs font-bold flex items-center justify-center gap-1 active:scale-95 transition shadow-lg"
-              >
-                <Check className="w-3.5 h-3.5" />
-                <span>Terapkan</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL TAMBAH IKON MEDSOS (+) */}
-      {isAddSocialOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fadeIn">
-          <div className="w-full max-w-xs rounded-[32px] bg-[#0c121d]/95 border border-white/[0.08] p-5 shadow-2xl flex flex-col gap-3.5 text-left">
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-bold text-slate-200">+ Tambah Medsos</span>
-              <button 
-                onClick={() => setIsAddSocialOpen(false)}
-                className="w-7 h-7 rounded-full bg-white/[0.05] text-slate-400 hover:text-white flex items-center justify-center text-xs"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <p className="text-[11px] text-slate-400">
-              Paket <b>Motion {currentPlan}</b>: maksimal {getMaxSocials() === 999 ? 'Unlimited' : `${getMaxSocials()} tautan`}.
-            </p>
-
             <div>
-              <label className="text-[10px] text-slate-400 block mb-1">Unggah Ikon Medsos (PNG/JPG/WebP)</label>
-              <label className="w-full border border-dashed border-white/[0.1] hover:border-emerald-500/40 rounded-2xl py-2.5 px-3 flex items-center justify-center gap-2 cursor-pointer bg-[#060910] transition">
+              <p className="text-xs font-semibold text-zinc-200 truncate max-w-[150px]">{musicTitle}</p>
+              <p className="text-[10px] text-zinc-500">Audio Background</p>
+            </div>
+          </div>
+
+          {/* Visualizer Bars */}
+          <div className="flex items-end gap-1 h-5 px-2">
+            {[40, 90, 60, 100, 75, 45].map((h, i) => (
+              <span 
+                key={i} 
+                style={{ height: isPlayingMusic ? `${h}%` : '20%' }}
+                className={`w-1 rounded-full bg-violet-500 transition-all duration-300 ${isPlayingMusic ? 'animate-pulse' : 'opacity-30'}`}
+              />
+            ))}
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button 
+              onClick={togglePlayMusic}
+              className="w-8 h-8 rounded-lg bg-violet-600 hover:bg-violet-500 flex items-center justify-center text-white shadow-md shadow-violet-600/30"
+            >
+              {isPlayingMusic ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 ml-0.5" />}
+            </button>
+            <label className="p-2 rounded-lg bg-zinc-800 text-zinc-400 hover:text-white cursor-pointer">
+              <Upload className="w-3.5 h-3.5" />
+              <input type="file" accept="audio/mp3" onChange={handleMusicUpload} className="hidden" />
+            </label>
+          </div>
+
+          {musicFile && <audio ref={audioRef} src={musicFile} loop />}
+        </div>
+
+        {/* Live Billboard Grid Showcase */}
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center justify-between text-xs text-zinc-400 px-1">
+            <span className="font-semibold text-zinc-300">Live Ad Slot ({selectedRatio})</span>
+            <span>{views} Views • {clicks} Clicks</span>
+          </div>
+
+          <div 
+            className="w-full rounded-3xl bg-zinc-900/70 border border-violet-500/30 p-4 backdrop-blur-xl relative overflow-hidden shadow-2xl"
+            style={{
+              display: 'grid',
+              gridTemplateColumns: `repeat(${colSpan}, minmax(0, 1fr))`,
+              minHeight: '140px'
+            }}
+          >
+            {/* Slot Content */}
+            <div className="col-span-full flex flex-col items-center justify-center text-center p-4 rounded-2xl bg-gradient-to-b from-zinc-800/40 to-zinc-900/60 border border-zinc-700/40">
+              <h3 className={`text-base font-bold text-white mb-1 ${fontName ? 'font-brand' : ''}`}>
+                {userProfile.name}
+              </h3>
+              <p className="text-xs text-zinc-400 max-w-xs mb-3">
+                Slot Iklan Promosi Interaktif Terintegrasi Real-Time WebSocket.
+              </p>
+              <a 
+                href={bannerLink} 
+                target="_blank" 
+                rel="noreferrer"
+                onClick={() => {
+                  setClicks(c => c + 1);
+                  broadcastUpdate({ clicks: clicks + 1 });
+                }}
+                className="px-4 py-1.5 rounded-xl bg-gradient-to-r from-violet-600 to-blue-600 text-xs font-semibold text-white shadow-lg shadow-violet-600/30 hover:opacity-90 flex items-center gap-1.5"
+              >
+                Kunjungi Tautan <ExternalLink className="w-3 h-3" />
+              </a>
+            </div>
+          </div>
+        </div>
+
+        {/* Grid Ratio Selector */}
+        <div className="p-4 rounded-2xl bg-zinc-900/50 border border-zinc-800/70 flex items-center justify-between">
+          <span className="text-xs font-medium text-zinc-400 flex items-center gap-1.5">
+            <Layers className="w-3.5 h-3.5 text-violet-400" /> Grid Slot:
+          </span>
+          <div className="flex gap-2">
+            {[
+              { label: '5x1', col: 5, row: 1 },
+              { label: '4x2', col: 4, row: 2 },
+              { label: '3x3', col: 3, row: 3 }
+            ].map((r) => (
+              <button
+                key={r.label}
+                onClick={() => handleRatioChange(r.label, r.col, r.row)}
+                className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all ${
+                  selectedRatio === r.label 
+                    ? 'bg-violet-600 text-white shadow-sm'
+                    : 'bg-zinc-800 text-zinc-400 hover:text-zinc-200'
+                }`}
+              >
+                {r.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Subscription Tier Selection */}
+        <div className="flex flex-col gap-3">
+          <span className="text-xs font-semibold text-zinc-400 px-1">Pilih Paket Langganan</span>
+          <div className="grid grid-cols-3 gap-2.5">
+            {[
+              { name: 'Basic', icon: ShieldCheck, color: 'text-zinc-400', border: 'border-zinc-800' },
+              { name: 'Pro', icon: Sparkles, color: 'text-blue-400', border: 'border-blue-500/40' },
+              { name: 'Super', icon: Gem, color: 'text-violet-400', border: 'border-violet-500/40' }
+            ].map((plan) => {
+              const Icon = plan.icon;
+              const isSelected = currentPlan === plan.name;
+              return (
+                <div 
+                  key={plan.name}
+                  onClick={() => handlePlanSelect(plan.name)}
+                  className={`p-3 rounded-2xl border backdrop-blur-md cursor-pointer flex flex-col items-center gap-1.5 transition-all ${
+                    isSelected 
+                      ? 'bg-violet-950/40 border-violet-500 shadow-lg shadow-violet-600/20' 
+                      : 'bg-zinc-900/40 border-zinc-800 hover:border-zinc-700'
+                  }`}
+                >
+                  <Icon className={`w-5 h-5 ${plan.color}`} />
+                  <span className="text-xs font-bold text-zinc-200">{plan.name}</span>
+                  {isSelected && <span className="text-[9px] text-violet-400 font-medium">Aktif</span>}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Custom Font Upload Box */}
+        <div className="p-4 rounded-2xl bg-zinc-900/50 border border-zinc-800 flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <Type className="w-4 h-4 text-violet-400" />
+            <div>
+              <p className="text-xs font-medium text-zinc-200">Custom Typography (.ttf / .otf)</p>
+              <p className="text-[10px] text-zinc-500">{fontName ? 'Font kustom aktif' : 'Gunakan font brand kamu'}</p>
+            </div>
+          </div>
+          <label className="px-3 py-1.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-xs text-zinc-300 cursor-pointer flex items-center gap-1.5">
+            <Upload className="w-3 h-3" /> Pilih Font
+            <input type="file" accept=".ttf,.otf" onChange={handleFontUpload} className="hidden" />
+          </label>
+        </div>
+      </main>
+
+      {/* Modal Crop Foto Profil */}
+      {cropModalOpen && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="w-full max-w-sm rounded-3xl bg-zinc-900 border border-zinc-800 p-5 flex flex-col items-center gap-4">
+            <h3 className="text-sm font-bold text-zinc-200">Ubah Foto Profil</h3>
+            <div className="w-32 h-32 rounded-2xl border-2 border-dashed border-violet-500/50 flex items-center justify-center overflow-hidden">
+              <img 
+                src={tempAvatar} 
+                alt="Preview" 
+                style={{ transform: `scale(${zoomLevel}) rotate(${rotateDeg}deg)` }}
+                className="w-full h-full object-cover transition-transform" 
+              />
+            </div>
+
+            {/* Slider Zoom */}
+            <div className="w-full flex flex-col gap-1">
+              <label className="text-[11px] text-zinc-400">Zoom: {zoomLevel}x</label>
+              <input 
+                type="range" min="1" max="2" step="0.1" 
+                value={zoomLevel} 
+                onChange={(e) => setZoomLevel(parseFloat(e.target.value))}
+                className="w-full accent-violet-600"
+              />
+            </div>
+
+            <div className="w-full flex gap-2">
+              <label className="flex-1 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-xs text-center font-medium cursor-pointer">
+                Pilih File
                 <input 
                   type="file" 
-                  accept="image/png,image/jpeg,image/webp" 
+                  accept="image/*" 
                   onChange={(e) => {
-                    const f = e.target.files[0];
-                    if (f) setNewSocialIcon(URL.createObjectURL(f));
+                    const file = e.target.files[0];
+                    if (file) setTempAvatar(URL.createObjectURL(file));
                   }} 
                   className="hidden" 
                 />
-                {newSocialIcon ? (
-                  <img src={newSocialIcon} alt="Icon Preview" className="w-6 h-6 rounded-full object-cover" />
-                ) : (
-                  <span className="text-xs text-emerald-400 font-semibold flex items-center gap-1.5">
-                    <Upload className="w-3.5 h-3.5" />
-                    <span>Pilih File Ikon</span>
-                  </span>
-                )}
               </label>
-            </div>
-
-            <div>
-              <label className="text-[10px] text-slate-400 block mb-1">Tautan URL Medsos</label>
-              <input
-                type="url"
-                value={newSocialUrl}
-                onChange={(e) => setNewSocialUrl(e.target.value)}
-                placeholder="https://tiktok.com/@akun"
-                className="w-full bg-[#060910] border border-white/[0.08] rounded-2xl px-3.5 py-2 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-emerald-500/50"
-              />
-            </div>
-
-            <button
-              onClick={handleAddSocial}
-              className="w-full py-2.5 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-black text-xs font-bold transition shadow-lg active:scale-95"
-            >
-              Pasang Ikon Medsos
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL FORM SEWA BANNER */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-fadeIn">
-          <div className="w-full max-w-sm rounded-[32px] bg-[#0c121d]/95 backdrop-blur-2xl border border-white/[0.08] p-5 shadow-[0_20px_50px_rgba(0,0,0,0.85)] flex flex-col gap-3.5 text-left relative transition-all duration-300 max-h-[90vh] overflow-y-auto">
-            
-            <div className="flex items-center justify-between pb-1">
-              <div className="flex items-center gap-2">
-                <span className="text-emerald-400 font-bold text-sm">+ Konfigurasi Banner</span>
-                <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-semibold border ${
-                  isFreeSlot 
-                    ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30' 
-                    : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
-                }`}>
-                  {isFreeSlot ? '1 Slot Gratis' : `Rp ${totalPrice.toLocaleString('id-ID')}`}
-                </span>
-              </div>
-              <button
-                onClick={() => setIsModalOpen(false)}
-                className="w-7 h-7 rounded-full bg-emerald-500 text-black flex items-center justify-center font-bold text-sm hover:scale-105 active:scale-95 transition"
+              <button 
+                onClick={() => {
+                  saveProfile(tempProfileName, tempAvatar);
+                  setCropModalOpen(false);
+                }}
+                className="flex-1 py-2 rounded-xl bg-violet-600 hover:bg-violet-500 text-xs font-semibold text-white"
               >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <div>
-              <label className="text-xs text-slate-400 font-medium block mb-1">Nama Brand / Produk</label>
-              <input
-                type="text"
-                value={inputName}
-                onChange={(e) => setInputName(e.target.value)}
-                placeholder="Contoh: Anak Programmer Indonesia"
-                className="w-full bg-[#060910] border border-white/[0.08] rounded-2xl px-3.5 py-2.5 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-emerald-500/50"
-              />
-            </div>
-
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="text-xs text-slate-400 font-medium">Aspek Rasio Grid</label>
-                <span className="text-[10px] text-emerald-400 font-mono">
-                  {totalSlotsUsed} Slot {isFreeSlot ? '(Gratis)' : `(Bayar ${totalSlotsUsed - 1} Slot)`}
-                </span>
-              </div>
-              <div className="grid grid-cols-5 gap-1.5">
-                {[
-                  { label: '1:1', val: '1:1' },
-                  { label: '5:1', val: '5:1' },
-                  { label: '2x2', val: '2x2' },
-                  { label: '9:16', val: '9:16' },
-                  { label: '16:9', val: '16:9' },
-                ].map((item) => (
-                  <button
-                    key={item.val}
-                    type="button"
-                    onClick={() => applyAspectRatio(item.val)}
-                    className={`py-2 rounded-xl text-xs font-semibold transition-all duration-200 active:scale-95 ${
-                      selectedRatio === item.val
-                        ? 'bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 shadow-sm'
-                        : 'bg-[#060910] border border-white/[0.05] text-slate-400 hover:text-white'
-                    }`}
-                  >
-                    {item.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <label className="text-xs text-slate-400 font-medium block mb-1">Media Visual (Gambar)</label>
-              <label className="w-full border border-dashed border-white/[0.1] hover:border-emerald-500/40 rounded-2xl py-3 px-2 flex flex-col items-center justify-center cursor-pointer bg-[#060910] transition relative overflow-hidden">
-                <input type="file" accept="image/*" onChange={handleBannerUpload} className="hidden" />
-                {isUploading ? (
-                  <div className="w-full flex flex-col items-center gap-2 py-1">
-                    <div className="w-3/4 h-1.5 bg-white/10 rounded-full overflow-hidden">
-                      <div 
-                        style={{ width: `${uploadProgress}%` }} 
-                        className="h-full bg-emerald-400 rounded-full transition-all duration-150"
-                      />
-                    </div>
-                    <span className="text-[11px] text-emerald-400 font-mono">Mengunggah... {uploadProgress}%</span>
-                  </div>
-                ) : (
-                  <>
-                    <Upload className="w-5 h-5 text-emerald-400 mb-1" />
-                    <span className="text-xs text-slate-300 font-medium">
-                      {inputImage ? '✓ Media Terpilih (Klik Ganti)' : 'Pilih File Gambar'}
-                    </span>
-                  </>
-                )}
-              </label>
-            </div>
-
-            <div>
-              <label className="text-xs text-slate-400 font-medium block mb-1">Tautan Tujuan Banner</label>
-              <input
-                type="url"
-                value={inputLink}
-                onChange={(e) => setInputLink(e.target.value)}
-                placeholder="https://linktujuan.com"
-                className="w-full bg-[#060910] border border-white/[0.08] rounded-2xl px-3.5 py-2.5 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-emerald-500/50"
-              />
-            </div>
-
-            <button
-              onClick={handleProceedRent}
-              className="w-full mt-2 py-3 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-black font-bold text-xs tracking-wide shadow-[0_4px_16px_rgba(16,185,129,0.3)] transition-all duration-200 active:scale-95 flex items-center justify-center gap-2"
-            >
-              <span>{isFreeSlot ? 'Pasang Sekarang (1 Slot Gratis)' : `Bayar Rp ${totalPrice.toLocaleString('id-ID')} & Pasang`}</span>
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* POPUP BAYAR QRIS */}
-      {isPaymentOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-lg animate-fadeIn">
-          <div className="w-full max-w-xs rounded-[32px] bg-[#0c121d]/95 border border-white/[0.08] p-5 shadow-2xl flex flex-col items-center text-center gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
-              <CreditCard className="w-6 h-6" />
-            </div>
-
-            <div className="flex flex-col">
-              <span className="text-sm font-bold text-slate-200">Konfirmasi Sewa Slot</span>
-              <span className="text-xs text-slate-400 mt-1">Total {totalSlotsUsed} Slot (1 Slot Gratis + {totalSlotsUsed - 1} Slot Berbayar)</span>
-              <span className="text-lg font-extrabold text-emerald-400 mt-2 font-mono">
-                Rp {totalPrice.toLocaleString('id-ID')}
-              </span>
-            </div>
-
-            <div className="w-36 h-36 rounded-2xl bg-white p-2 flex items-center justify-center shadow-inner">
-              <img 
-                src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=PROMOTION-SLOT-PAYMENT" 
-                alt="QRIS" 
-                className="w-full h-full object-contain"
-              />
-            </div>
-
-            <span className="text-[10px] text-slate-500">Scan QRIS instan atau klik konfirmasi</span>
-
-            <div className="flex gap-2 w-full mt-1">
-              <button
-                onClick={() => setIsPaymentOpen(false)}
-                className="flex-1 py-2.5 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] text-slate-300 text-xs font-semibold active:scale-95 transition"
-              >
-                Batal
-              </button>
-              <button
-                onClick={handleConfirmPayment}
-                disabled={isProcessingPay}
-                className="flex-1 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black text-xs font-bold active:scale-95 transition shadow-lg flex items-center justify-center gap-1.5"
-              >
-                {isProcessingPay ? (
-                  <span className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin" />
-                ) : (
-                  'Sudah Bayar'
-                )}
+                Terapkan
               </button>
             </div>
           </div>
         </div>
       )}
-
     </div>
   );
 }
