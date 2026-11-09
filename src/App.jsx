@@ -1,16 +1,6 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { io } from 'socket.io-client';
 import {
-  Menu,
-  Settings,
-  Play,
-  Pause,
-  Plus,
-  LogIn,
-  Edit3,
-  RotateCw,
-  RotateCcw,
-  Check,
-  X,
   Save,
   Upload,
   Music,
@@ -22,10 +12,21 @@ import {
   ShieldCheck,
   Layers,
   Disc3,
-  Sliders
+  Sliders,
+  Wifi,
+  WifiOff
 } from 'lucide-react';
 
+const SOCKET_URL = 'https://promotion-backend-production.up.railway.app';
+const socket = io(SOCKET_URL, {
+  transports: ['websocket', 'polling'],
+  reconnectionAttempts: 5,
+});
+
 export default function App() {
+  // State Status Koneksi Real-time
+  const [isConnected, setIsConnected] = useState(false);
+
   // State Langganan: Default 'Basic'
   const [currentPlan, setCurrentPlan] = useState('Basic');
   const [subscriptionExpiry, setSubscriptionExpiry] = useState('12 Des 2026');
@@ -76,7 +77,7 @@ export default function App() {
     musicTitle: 'iphone-circles',
     musicFile: null,
     isPlayingMusic: false,
-    musicVisualizerType: 'bars', // 'bars' | 'disc'
+    musicVisualizerType: 'bars',
     clicks: 142,
     views: 1890,
     socials: [],
@@ -108,49 +109,87 @@ export default function App() {
   const audioRef = useRef(null);
   const dragStartRef = useRef(null);
 
+  // --- SINKRONISASI REAL-TIME WEBSOCKET (SOCKET.IO) ---
   useEffect(() => {
-    const saved = localStorage.getItem('promotion_slot_data_v11');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        if (parsed.bannerData) {
-          setBannerData(parsed.bannerData);
-          if (parsed.bannerData.brandFont) {
-            const style = document.createElement('style');
-            style.id = 'dynamic-brand-font';
-            style.innerHTML = `@font-face { font-family: 'BrandCustomFont'; src: url('${parsed.bannerData.brandFont}'); }`;
-            document.head.appendChild(style);
-          }
-        }
-        if (parsed.userProfile) {
-          setUserProfile(parsed.userProfile);
-          setTempProfileName(parsed.userProfile.name);
-          setTempAvatar(parsed.userProfile.avatar);
-        }
-        if (parsed.colSpan) setColSpan(parsed.colSpan);
-        if (parsed.rowSpan) setRowSpan(parsed.rowSpan);
-        if (parsed.isOccupied !== undefined) setIsOccupied(parsed.isOccupied);
-        if (parsed.currentPlan) setCurrentPlan(parsed.currentPlan);
-        if (parsed.uploadedBanners) setUploadedBanners(parsed.uploadedBanners);
-      } catch (err) {
-        console.error(err);
-      }
-    }
+    socket.on('connect', () => {
+      setIsConnected(true);
+      console.log('Terhubung ke ProMotion Realtime Server');
+    });
+
+    socket.on('disconnect', () => {
+      setIsConnected(false);
+      console.log('Terputus dari ProMotion Realtime Server');
+    });
+
+    // Inisialisasi awal saat user buka web
+    socket.on('billboard_init', (data) => {
+      applyIncomingData(data);
+    });
+
+    // Menerima update LIVE dari user lain yang mengubah data
+    socket.on('billboard_updated', (data) => {
+      applyIncomingData(data);
+    });
+
+    // Sinkronisasi klik banner real-time
+    socket.on('banner_click_updated', (clicks) => {
+      setBannerData((prev) => ({ ...prev, clicks }));
+    });
+
+    return () => {
+      socket.off('connect');
+      socket.off('disconnect');
+      socket.off('billboard_init');
+      socket.off('billboard_updated');
+      socket.off('banner_click_updated');
+    };
   }, []);
 
-  const persistAll = (updatedBanner, cols, rows, occupied, profile, plan, history) => {
-    localStorage.setItem(
-      'promotion_slot_data_v11',
-      JSON.stringify({
-        bannerData: updatedBanner,
-        colSpan: cols,
-        rowSpan: rows,
-        isOccupied: occupied,
-        userProfile: profile,
-        currentPlan: plan,
-        uploadedBanners: history,
-      })
-    );
+  const applyIncomingData = (data) => {
+    if (!data) return;
+    setBannerData((prev) => ({
+      ...prev,
+      name: data.name ?? prev.name,
+      brandFont: data.brandFont ?? prev.brandFont,
+      image: data.image ?? prev.image,
+      link: data.link ?? prev.link,
+      musicTitle: data.musicTitle ?? prev.musicTitle,
+      musicFile: data.musicFile ?? prev.musicFile,
+      musicVisualizerType: data.musicVisualizerType ?? prev.musicVisualizerType,
+      clicks: data.clicks ?? prev.clicks,
+      views: data.views ?? prev.views,
+      socials: data.socials ?? prev.socials,
+    }));
+
+    if (data.colSpan) setColSpan(data.colSpan);
+    if (data.rowSpan) setRowSpan(data.rowSpan);
+    if (data.currentPlan) setCurrentPlan(data.currentPlan);
+    if (data.userProfile) {
+      setUserProfile(data.userProfile);
+      setTempProfileName(data.userProfile.name);
+      setTempAvatar(data.userProfile.avatar);
+    }
+  };
+
+  // Broadcast Perubahan ke Seluruh Client
+  const broadcastUpdate = (updatedBanner, cols, rows, plan, profile) => {
+    const payload = {
+      name: updatedBanner.name,
+      brandFont: updatedBanner.brandFont,
+      image: updatedBanner.image,
+      link: updatedBanner.link,
+      musicTitle: updatedBanner.musicTitle,
+      musicFile: updatedBanner.musicFile,
+      musicVisualizerType: updatedBanner.musicVisualizerType,
+      clicks: updatedBanner.clicks,
+      views: updatedBanner.views,
+      socials: updatedBanner.socials,
+      colSpan: cols ?? colSpan,
+      rowSpan: rows ?? rowSpan,
+      currentPlan: plan ?? currentPlan,
+      userProfile: profile ?? userProfile,
+    };
+    socket.emit('update_billboard', payload);
   };
 
   const totalSlotsUsed = colSpan * rowSpan;
@@ -180,7 +219,7 @@ export default function App() {
     };
     setUserProfile(updatedProfile);
     setShowSaveBtn(false);
-    persistAll(bannerData, colSpan, rowSpan, isOccupied, updatedProfile, currentPlan, uploadedBanners);
+    broadcastUpdate(bannerData, colSpan, rowSpan, currentPlan, updatedProfile);
   };
 
   const handleTouchStart = (e) => {
@@ -207,16 +246,22 @@ export default function App() {
 
   const handleTouchEnd = () => {
     dragStartRef.current = null;
-    persistAll(bannerData, colSpan, rowSpan, isOccupied, userProfile, currentPlan, uploadedBanners);
+    broadcastUpdate(bannerData, colSpan, rowSpan, currentPlan, userProfile);
   };
 
   const applyAspectRatio = (ratio) => {
     setSelectedRatio(ratio);
-    if (ratio === '1:1') { setColSpan(1); setRowSpan(1); }
-    else if (ratio === '5:1') { setColSpan(5); setRowSpan(1); }
-    else if (ratio === '2x2') { setColSpan(2); setRowSpan(2); }
-    else if (ratio === '9:16') { setColSpan(2); setRowSpan(4); }
-    else if (ratio === '16:9') { setColSpan(4); setRowSpan(2); }
+    let nextCols = colSpan;
+    let nextRows = rowSpan;
+    if (ratio === '1:1') { nextCols = 1; nextRows = 1; }
+    else if (ratio === '5:1') { nextCols = 5; nextRows = 1; }
+    else if (ratio === '2x2') { nextCols = 2; nextRows = 2; }
+    else if (ratio === '9:16') { nextCols = 2; nextRows = 4; }
+    else if (ratio === '16:9') { nextCols = 4; nextRows = 2; }
+
+    setColSpan(nextCols);
+    setRowSpan(nextRows);
+    broadcastUpdate(bannerData, nextCols, nextRows, currentPlan, userProfile);
   };
 
   const handleBannerUpload = (e) => {
@@ -277,7 +322,7 @@ export default function App() {
         const updatedBanner = { ...bannerData, brandFont: fontName };
         setBannerData(updatedBanner);
         triggerAutoSaveTimer();
-        persistAll(updatedBanner, colSpan, rowSpan, isOccupied, userProfile, currentPlan, uploadedBanners);
+        broadcastUpdate(updatedBanner, colSpan, rowSpan, currentPlan, userProfile);
       } catch (err) {
         console.error('Gagal load font:', err);
       }
@@ -301,7 +346,7 @@ export default function App() {
       };
       setBannerData(updated);
       triggerAutoSaveTimer();
-      persistAll(updated, colSpan, rowSpan, isOccupied, userProfile, currentPlan, uploadedBanners);
+      broadcastUpdate(updated, colSpan, rowSpan, currentPlan, userProfile);
     }
   };
 
@@ -319,7 +364,9 @@ export default function App() {
         if (audioRef.current) audioRef.current.pause();
       }
     }
-    setBannerData((prev) => ({ ...prev, isPlayingMusic: !prev.isPlayingMusic }));
+    const nextPlayState = !bannerData.isPlayingMusic;
+    setBannerData((prev) => ({ ...prev, isPlayingMusic: nextPlayState }));
+    socket.emit('toggle_music', nextPlayState);
   };
 
   const toggleVisualizerType = (e) => {
@@ -327,7 +374,7 @@ export default function App() {
     const nextType = bannerData.musicVisualizerType === 'bars' ? 'disc' : 'bars';
     const updated = { ...bannerData, musicVisualizerType: nextType };
     setBannerData(updated);
-    persistAll(updated, colSpan, rowSpan, isOccupied, userProfile, currentPlan, uploadedBanners);
+    broadcastUpdate(updated, colSpan, rowSpan, currentPlan, userProfile);
   };
 
   const handleAddSocial = () => {
@@ -353,7 +400,7 @@ export default function App() {
     setIsAddSocialOpen(false);
     setNewSocialIcon(null);
     setNewSocialUrl('');
-    persistAll(updatedBanner, colSpan, rowSpan, isOccupied, userProfile, currentPlan, uploadedBanners);
+    broadcastUpdate(updatedBanner, colSpan, rowSpan, currentPlan, userProfile);
   };
 
   const handleProceedRent = () => {
@@ -387,7 +434,7 @@ export default function App() {
     setIsPaymentOpen(false);
     setIsModalOpen(false);
 
-    persistAll(updatedBanner, colSpan, rowSpan, true, userProfile, currentPlan, updatedHistory);
+    broadcastUpdate(updatedBanner, colSpan, rowSpan, currentPlan, userProfile);
   };
 
   const handleConfirmPayment = () => {
@@ -400,11 +447,7 @@ export default function App() {
 
   const handleBannerClick = () => {
     if (bannerData.link) {
-      setBannerData((prev) => {
-        const next = { ...prev, clicks: prev.clicks + 1 };
-        persistAll(next, colSpan, rowSpan, isOccupied, userProfile, currentPlan, uploadedBanners);
-        return next;
-      });
+      socket.emit('click_banner');
       window.open(bannerData.link, '_blank');
     }
   };
@@ -460,14 +503,30 @@ export default function App() {
           </div>
         </div>
 
-        {/* SISI KANAN: TOMBOL MASUK/DAFTAR */}
-        <button
-          onClick={() => { setAuthMode('login'); setIsAuthModalOpen(true); }}
-          className="px-3.5 py-1.5 text-xs font-semibold rounded-2xl bg-white/[0.03] hover:bg-violet-500/10 border border-white/[0.08] hover:border-violet-500/30 text-slate-300 hover:text-violet-300 backdrop-blur-xl transition-all duration-200 active:scale-95 flex items-center gap-2 shadow-sm"
-        >
-          <LogIn className="w-3.5 h-3.5 text-violet-400" />
-          <span>Masuk / Daftar</span>
-        </button>
+        {/* SISI KANAN: STATUS SINKRON WEBSOCKET & MASUK/DAFTAR */}
+        <div className="flex items-center gap-2">
+          <div 
+            title={isConnected ? 'Realtime WebSocket Aktif' : 'Menghubungkan ke Realtime...'}
+            className="flex items-center gap-1 px-2 py-1 rounded-xl bg-white/[0.03] border border-white/[0.06]"
+          >
+            {isConnected ? (
+              <Wifi className="w-3.5 h-3.5 text-emerald-400 animate-pulse" />
+            ) : (
+              <WifiOff className="w-3.5 h-3.5 text-rose-400" />
+            )}
+            <span className="text-[9px] font-mono text-slate-400 hidden sm:inline">
+              {isConnected ? 'LIVE' : 'OFFLINE'}
+            </span>
+          </div>
+
+          <button
+            onClick={() => { setAuthMode('login'); setIsAuthModalOpen(true); }}
+            className="px-3.5 py-1.5 text-xs font-semibold rounded-2xl bg-white/[0.03] hover:bg-violet-500/10 border border-white/[0.08] hover:border-violet-500/30 text-slate-300 hover:text-violet-300 backdrop-blur-xl transition-all duration-200 active:scale-95 flex items-center gap-1.5 shadow-sm"
+          >
+            <LogIn className="w-3.5 h-3.5 text-violet-400" />
+            <span>Masuk / Daftar</span>
+          </button>
+        </div>
       </header>
 
       {/* Hero Description */}
@@ -665,6 +724,7 @@ export default function App() {
               </div>
             );
           })}
+
         </div>
       </div>
       {/* DRAWER MENU UTAMA */}
@@ -740,7 +800,10 @@ export default function App() {
                   
                   {/* 1. Motion Basic */}
                   <div 
-                    onClick={() => { setCurrentPlan('Basic'); persistAll(bannerData, colSpan, rowSpan, isOccupied, userProfile, 'Basic', uploadedBanners); }}
+                    onClick={() => { 
+                      setCurrentPlan('Basic'); 
+                      broadcastUpdate(bannerData, colSpan, rowSpan, 'Basic', userProfile);
+                    }}
                     className={`p-3.5 rounded-2xl cursor-pointer transition-all duration-300 border backdrop-blur-xl relative ${
                       currentPlan === 'Basic'
                         ? 'bg-gradient-to-br from-slate-800/40 via-slate-900/60 to-black/50 border-slate-500/40 shadow-sm'
@@ -768,7 +831,10 @@ export default function App() {
 
                   {/* 2. Motion Pro */}
                   <div 
-                    onClick={() => { setCurrentPlan('Pro'); persistAll(bannerData, colSpan, rowSpan, isOccupied, userProfile, 'Pro', uploadedBanners); }}
+                    onClick={() => { 
+                      setCurrentPlan('Pro'); 
+                      broadcastUpdate(bannerData, colSpan, rowSpan, 'Pro', userProfile);
+                    }}
                     className={`p-3.5 rounded-2xl cursor-pointer transition-all duration-300 border backdrop-blur-xl relative overflow-hidden ${
                       currentPlan === 'Pro'
                         ? 'bg-gradient-to-br from-cyan-950/30 via-[#0d1627]/70 to-[#0a1120]/80 border-cyan-400/50 shadow-[0_0_24px_rgba(6,182,212,0.18)]'
@@ -796,7 +862,10 @@ export default function App() {
 
                   {/* 3. Motion Super */}
                   <div 
-                    onClick={() => { setCurrentPlan('Super'); persistAll(bannerData, colSpan, rowSpan, isOccupied, userProfile, 'Super', uploadedBanners); }}
+                    onClick={() => { 
+                      setCurrentPlan('Super'); 
+                      broadcastUpdate(bannerData, colSpan, rowSpan, 'Super', userProfile);
+                    }}
                     className={`p-3.5 rounded-2xl cursor-pointer transition-all duration-300 border backdrop-blur-xl relative overflow-hidden ${
                       currentPlan === 'Super'
                         ? 'bg-gradient-to-br from-amber-950/35 via-[#1b1509]/70 to-[#120e06]/80 border-amber-400/50 shadow-[0_0_28px_rgba(245,158,11,0.22)]'
@@ -844,7 +913,7 @@ export default function App() {
                       onChange={(e) => {
                         const updated = { ...bannerData, musicTitle: e.target.value };
                         setBannerData(updated);
-                        persistAll(updated, colSpan, rowSpan, isOccupied, userProfile, currentPlan, uploadedBanners);
+                        broadcastUpdate(updated, colSpan, rowSpan, currentPlan, userProfile);
                       }}
                       className="w-full bg-[#060910] border border-white/[0.08] rounded-2xl px-3.5 py-2.5 text-xs text-slate-200 focus:outline-none focus:border-violet-500/50 backdrop-blur-md"
                     />
