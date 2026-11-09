@@ -9,9 +9,9 @@ export default function App() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('slots');
 
-  // State Ukuran Grid Slot
-  const [colSpan, setColSpan] = useState(5);
-  const [rowSpan, setRowSpan] = useState(4);
+  // State Ukuran Grid Slot - DEFAULT 1 SLOT (GRATIS)
+  const [colSpan, setColSpan] = useState(1);
+  const [rowSpan, setRowSpan] = useState(1);
   const [selectedRatio, setSelectedRatio] = useState('1:1');
 
   // State User Profile ("Saya")
@@ -42,16 +42,16 @@ export default function App() {
   const [isOccupied, setIsOccupied] = useState(true);
   const [bannerData, setBannerData] = useState({
     name: 'Anak Programmer Indonesia',
-    brandFont: '', // Khusus font nama brand saja
+    brandFont: '',
     image: null,
     link: 'https://linktujuankamu',
     musicTitle: 'iphone-circles',
     musicFile: null,
     isPlayingMusic: false,
-    musicVisualizerType: 'bars', // 'bars' (garis equalizer) | 'disc' (vinyl piringan hitam)
+    musicVisualizerType: 'bars', // 'bars' | 'disc'
     clicks: 142,
     views: 1890,
-    socials: [], // Default kosong, hanya tombol [+]
+    socials: [],
   });
 
   // State Riwayat Upload Banner
@@ -59,8 +59,8 @@ export default function App() {
     {
       id: 1,
       name: 'Anak Programmer Indonesia',
-      size: '5x4 (20 Slot)',
-      date: '05 Nov 2026',
+      size: '1x1 (1 Slot - Gratis)',
+      date: '09 Nov 2026',
     },
   ]);
 
@@ -82,14 +82,13 @@ export default function App() {
 
   // Persistence Load LocalStorage
   useEffect(() => {
-    const saved = localStorage.getItem('promotion_slot_data_v6');
+    const saved = localStorage.getItem('promotion_slot_data_v7');
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
         if (parsed.bannerData) {
           setBannerData(parsed.bannerData);
           if (parsed.bannerData.brandFont) {
-            // Apply registered font nama brand
             const style = document.createElement('style');
             style.id = 'dynamic-brand-font';
             style.innerHTML = `@font-face { font-family: 'BrandCustomFont'; src: url('${parsed.bannerData.brandFont}'); }`;
@@ -114,7 +113,7 @@ export default function App() {
 
   const persistAll = (updatedBanner, cols, rows, occupied, profile, plan, history) => {
     localStorage.setItem(
-      'promotion_slot_data_v6',
+      'promotion_slot_data_v7',
       JSON.stringify({
         bannerData: updatedBanner,
         colSpan: cols,
@@ -127,15 +126,17 @@ export default function App() {
     );
   };
 
+  // 1 Slot Pertama = GRATIS (Rp 0), Tambahan slot = Rp 1.000 / slot
   const totalSlotsUsed = colSpan * rowSpan;
-  const totalPrice = totalSlotsUsed * 1000;
+  const isFreeSlot = totalSlotsUsed <= 1;
+  const totalPrice = isFreeSlot ? 0 : (totalSlotsUsed - 1) * 1000;
   const isMotionSuper = currentPlan === 'Super';
 
   // Kuota Medsos berdasarkan paket
   const getMaxSocials = () => {
     if (currentPlan === 'Basic') return 2;
     if (currentPlan === 'Pro') return 5;
-    return 999; // Super Unlimited
+    return 999;
   };
 
   // Trigger Tombol Simpan Otomatis Hilang Setelah 5 Detik
@@ -147,7 +148,6 @@ export default function App() {
     }, 5000);
   };
 
-  // Simpan Perubahan Profil
   const handleSaveProfile = () => {
     const updatedProfile = {
       ...userProfile,
@@ -189,10 +189,10 @@ export default function App() {
 
   const applyAspectRatio = (ratio) => {
     setSelectedRatio(ratio);
-    if (ratio === '1:1') { setColSpan(2); setRowSpan(2); }
+    if (ratio === '1:1') { setColSpan(1); setRowSpan(1); } // Default 1 Slot Gratis
+    else if (ratio === '2x2') { setColSpan(2); setRowSpan(2); }
     else if (ratio === '9:16') { setColSpan(2); setRowSpan(4); }
     else if (ratio === '16:9') { setColSpan(4); setRowSpan(2); }
-    else if (ratio === '4:5') { setColSpan(2); setRowSpan(3); }
   };
 
   // Upload Media Banner
@@ -220,7 +220,7 @@ export default function App() {
     }
   };
 
-  // 1. Pilih Avatar -> Buka Modal Crop
+  // Pilih Avatar -> Buka Modal Crop
   const handleAvatarFileSelect = (e) => {
     const file = e.target.files[0];
     if (file && file.type.startsWith('image/')) {
@@ -237,7 +237,7 @@ export default function App() {
     triggerAutoSaveTimer();
   };
 
-  // 2. Upload Custom Font (.ttf / .otf) KHUSUS NAMA BRAND
+  // Upload Font Khusus Nama Brand
   const handleFontUpload = async (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -263,7 +263,7 @@ export default function App() {
     }
   };
 
-  // 3. Upload File Musik (.mp3)
+  // Upload Musik .mp3
   const handleMusicUpload = (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -303,7 +303,6 @@ export default function App() {
     setBannerData((prev) => ({ ...prev, isPlayingMusic: !prev.isPlayingMusic }));
   };
 
-  // Toggle Tipe Visualizer Musik ('bars' <-> 'disc')
   const toggleVisualizerType = (e) => {
     e.stopPropagation();
     const nextType = bannerData.musicVisualizerType === 'bars' ? 'disc' : 'bars';
@@ -312,11 +311,10 @@ export default function App() {
     persistAll(updated, colSpan, rowSpan, isOccupied, userProfile, currentPlan, uploadedBanners);
   };
 
-  // Handle Tambah Medsos Baru Sesuai Kuota Paket
   const handleAddSocial = () => {
     const maxSocials = getMaxSocials();
     if (bannerData.socials.length >= maxSocials) {
-      alert(`Paket Motion ${currentPlan} dibatasi maksimal ${maxSocials} medsos! Upgrade paket untuk tambah lagi.`);
+      alert(`Paket Motion ${currentPlan} dibatasi maksimal ${maxSocials} medsos!`);
       return;
     }
     if (!newSocialIcon || !newSocialUrl) {
@@ -339,34 +337,46 @@ export default function App() {
     persistAll(updatedBanner, colSpan, rowSpan, isOccupied, userProfile, currentPlan, uploadedBanners);
   };
 
-  // Selesaikan Sewa / Simpan
+  // Langsung Pasang jika Gratis (1 Slot), atau Buka Modal Bayar jika > 1 Slot
+  const handleProceedRent = () => {
+    if (isFreeSlot) {
+      applyBannerChanges();
+    } else {
+      setIsPaymentOpen(true);
+    }
+  };
+
+  const applyBannerChanges = () => {
+    const bannerTitle = inputName.trim() ? inputName : userProfile.name;
+    const updatedBanner = {
+      ...bannerData,
+      name: bannerTitle,
+      image: inputImage || bannerData.image,
+      link: inputLink.trim() ? inputLink : 'https://linktujuankamu',
+    };
+
+    const newHistoryItem = {
+      id: Date.now(),
+      name: bannerTitle,
+      size: `${colSpan}x${rowSpan} (${totalSlotsUsed} Slot${isFreeSlot ? ' - Gratis' : ''})`,
+      date: 'Hari ini',
+    };
+    const updatedHistory = [newHistoryItem, ...uploadedBanners];
+
+    setBannerData(updatedBanner);
+    setUploadedBanners(updatedHistory);
+    setIsOccupied(true);
+    setIsPaymentOpen(false);
+    setIsModalOpen(false);
+
+    persistAll(updatedBanner, colSpan, rowSpan, true, userProfile, currentPlan, updatedHistory);
+  };
+
   const handleConfirmPayment = () => {
     setIsProcessingPay(true);
     setTimeout(() => {
-      const bannerTitle = inputName.trim() ? inputName : userProfile.name;
-      const updatedBanner = {
-        ...bannerData,
-        name: bannerTitle,
-        image: inputImage || bannerData.image,
-        link: inputLink.trim() ? inputLink : 'https://linktujuankamu',
-      };
-
-      const newHistoryItem = {
-        id: Date.now(),
-        name: bannerTitle,
-        size: `${colSpan}x${rowSpan} (${totalSlotsUsed} Slot)`,
-        date: 'Hari ini',
-      };
-      const updatedHistory = [newHistoryItem, ...uploadedBanners];
-
-      setBannerData(updatedBanner);
-      setUploadedBanners(updatedHistory);
-      setIsOccupied(true);
       setIsProcessingPay(false);
-      setIsPaymentOpen(false);
-      setIsModalOpen(false);
-
-      persistAll(updatedBanner, colSpan, rowSpan, true, userProfile, currentPlan, updatedHistory);
+      applyBannerChanges();
     }, 1100);
   };
 
@@ -384,62 +394,77 @@ export default function App() {
   return (
     <div className="min-h-screen bg-[#070b12] text-white flex flex-col items-center p-4 md:p-8 select-none relative overflow-x-hidden font-sans">
       
-      {/* Header Bar Baru: Logo ProMotion + Mode Super */}
+      {/* Header Bar: (Menu) + (Logo) + (Nama ProMotion) di Kiri, Pill Langganan Modern di Kanan */}
       <header className="w-full max-w-md md:max-w-3xl lg:max-w-5xl flex items-center justify-between py-3 px-2 border-b border-white/5 relative z-30">
-        <button 
-          onClick={() => setIsMenuOpen(true)}
-          className="w-10 h-10 rounded-2xl bg-[#0e1622]/80 backdrop-blur-xl border border-white/10 flex items-center justify-center text-gray-300 hover:text-white hover:border-emerald-500/40 active:scale-90 transition-all shadow-sm"
-        >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
-            <path d="M4 7h16M4 12h16M4 17h16" />
-          </svg>
-        </button>
+        
+        {/* SISI KIRI: MENU + LOGO + PROMOTION */}
+        <div className="flex items-center gap-2.5 animate-[fadeIn_0.5s_ease-out]">
+          <button 
+            onClick={() => setIsMenuOpen(true)}
+            className="w-10 h-10 rounded-2xl bg-[#0e1622]/80 backdrop-blur-xl border border-white/10 flex items-center justify-center text-gray-300 hover:text-white hover:border-emerald-500/40 active:scale-90 transition-all shadow-sm"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+              <path d="M4 7h16M4 12h16M4 17h16" />
+            </svg>
+          </button>
 
-        {/* LOGO & BRAND TEXT: PRO (Putih Gradasi) MOTION (Hijau Emerald Gradasi) */}
-        <div className="flex items-center gap-2">
-          <img 
-            src="/logo.png" 
-            alt="Logo" 
-            onError={(e) => { e.target.style.display = 'none'; }}
-            className="w-7 h-7 object-contain drop-shadow-[0_0_8px_rgba(16,185,129,0.4)]"
-          />
-          <div className="text-base font-extrabold tracking-tight flex items-center">
-            <span className="bg-gradient-to-r from-white via-gray-100 to-gray-400 bg-clip-text text-transparent drop-shadow-sm">
-              Pro
-            </span>
-            <span className="bg-gradient-to-r from-emerald-400 via-teal-300 to-emerald-500 bg-clip-text text-transparent drop-shadow-[0_0_12px_rgba(16,185,129,0.35)]">
-              Motion
-            </span>
+          {/* Kotak Logo + Nama ProMotion dengan Animasi Bergerak Masuk */}
+          <div className="flex items-center gap-2 bg-[#0c131f]/70 border border-white/10 px-2.5 py-1.5 rounded-2xl backdrop-blur-xl shadow-inner hover:scale-105 transition-transform duration-300">
+            <img 
+              src="/logo.png" 
+              alt="Logo" 
+              onError={(e) => { e.target.style.display = 'none'; }}
+              className="w-6 h-6 object-contain drop-shadow-[0_0_8px_rgba(16,185,129,0.4)] animate-[pulse_3s_infinite]"
+            />
+            <div className="text-sm font-extrabold tracking-tight flex items-center select-none">
+              <span className="bg-gradient-to-r from-white via-gray-100 to-gray-300 bg-clip-text text-transparent">
+                Pro
+              </span>
+              <span className="bg-gradient-to-r from-emerald-400 via-teal-300 to-emerald-500 bg-clip-text text-transparent drop-shadow-[0_0_10px_rgba(16,185,129,0.4)]">
+                Motion
+              </span>
+            </div>
           </div>
         </div>
 
-        {/* Mode Langganan Pill */}
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => { setActiveTab('subscription'); setIsMenuOpen(true); }}
-            className={`px-3 py-1.5 text-[11px] font-bold rounded-full transition-all border active:scale-95 ${
-              currentPlan === 'Super'
-                ? 'bg-amber-500/10 border-amber-500/40 text-amber-300 shadow-[0_0_14px_rgba(245,158,11,0.3)]'
-                : currentPlan === 'Pro'
-                ? 'bg-violet-500/15 border-violet-500/40 text-violet-300 shadow-[0_0_14px_rgba(139,92,246,0.3)]'
-                : 'bg-white/5 border-white/10 text-gray-300'
-            }`}
-          >
+        {/* SISI KANAN: PILL LANGGANAN BERBAGAI BACKGROUND EFEK MODERN */}
+        <button
+          onClick={() => { setActiveTab('subscription'); setIsMenuOpen(true); }}
+          className={`relative px-3.5 py-1.5 text-[11px] font-extrabold rounded-full transition-all duration-300 border overflow-hidden active:scale-95 ${
+            currentPlan === 'Basic'
+              ? 'bg-gradient-to-r from-gray-200/10 via-white/10 to-gray-300/10 border-white/30 text-gray-200 backdrop-blur-xl shadow-sm'
+              : currentPlan === 'Pro'
+              ? 'bg-gradient-to-r from-cyan-500/20 via-blue-600/25 to-indigo-500/20 border-cyan-400/50 text-cyan-200 shadow-[0_0_16px_rgba(6,182,212,0.4)] backdrop-blur-xl'
+              : 'bg-gradient-to-r from-amber-500/30 via-yellow-500/25 to-amber-600/30 border-amber-400/60 text-amber-200 shadow-[0_0_20px_rgba(245,158,11,0.5)] backdrop-blur-xl'
+          }`}
+        >
+          {/* Efek Kilau Khusus Motion Pro (Berlian Mengkilap) */}
+          {currentPlan === 'Pro' && (
+            <span className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-full animate-[shimmer_2.5s_infinite]" />
+          )}
+
+          {/* Efek Gelombang Emas Modern Khusus Motion Super */}
+          {currentPlan === 'Super' && (
+            <span className="absolute inset-0 w-full h-full bg-gradient-to-r from-amber-400/10 via-yellow-200/30 to-amber-400/10 animate-[pulse_2s_infinite]" />
+          )}
+
+          <span className="relative z-10 flex items-center gap-1">
+            {currentPlan === 'Pro' ? '💎 ' : currentPlan === 'Super' ? '✨ ' : ''}
             MOTION {currentPlan.toUpperCase()}
-          </button>
-        </div>
+          </span>
+        </button>
       </header>
 
       {/* Hero Description */}
-      <div className="w-full max-w-md md:max-w-2xl text-center my-5 px-2 flex flex-col items-center">
+      <div className="w-full max-w-md md:max-w-2xl text-center my-4 px-2 flex flex-col items-center">
         <div className="inline-block px-3 py-1 rounded-full bg-emerald-950/40 border border-emerald-500/30 text-emerald-400 text-xs font-medium mb-2 shadow-[0_0_10px_rgba(16,185,129,0.15)]">
           Promosikan Produk, Jasa, Website, dll anda di sini
         </div>
-        <p className="text-gray-400 text-xs md:text-sm leading-relaxed mb-3">
+        <p className="text-gray-400 text-xs md:text-sm leading-relaxed mb-2.5">
           Papan iklan piksel digital komunitas. Pasang banner usahamu, tentukan ukuran custom, dan tautkan jejaring media sosial langsung secara instan.
         </p>
 
-        {/* 1. BADGE SLOT 20/100 PINDAH KE BAWAH DESKRIPSI WEBSITE */}
+        {/* BADGE SLOT 1/100 DI BAWAH DESKRIPSI */}
         <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#0e1622]/90 border border-emerald-500/30 shadow-[0_0_12px_rgba(16,185,129,0.15)] backdrop-blur-md">
           <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
           <span className="text-[11px] font-mono font-bold text-emerald-400">
@@ -451,32 +476,38 @@ export default function App() {
       <div className="w-full max-w-md md:max-w-3xl lg:max-w-5xl bg-[#0c121d]/70 border border-white/5 rounded-3xl p-3 md:p-5 shadow-2xl backdrop-blur-2xl relative">
         <div className="grid grid-cols-5 md:grid-cols-8 lg:grid-cols-10 gap-2 md:gap-3 auto-rows-[64px] md:auto-rows-[76px] relative">
           
-          {/* BANNER UTAMA */}
+          {/* BANNER UTAMA (DISESUAIKAN AGAR 1 SLOT TETAP RAPI DAN TIDAK HANCUR) */}
           {isOccupied ? (
             <div
               style={{
                 gridColumn: `span ${colSpan}`,
                 gridRow: `span ${rowSpan}`,
               }}
-              className="relative rounded-2xl p-1.5 flex flex-col justify-between overflow-visible transition-all duration-300 border border-emerald-500/40 bg-gradient-to-br from-[#121c2b]/90 to-[#0a111a]/90 backdrop-blur-xl shadow-[0_4px_24px_rgba(0,0,0,0.5)] group"
+              className={`relative rounded-2xl flex flex-col justify-between overflow-hidden transition-all duration-300 border border-emerald-500/40 bg-gradient-to-br from-[#121c2b]/95 to-[#0a111a]/95 backdrop-blur-xl shadow-[0_4px_24px_rgba(0,0,0,0.5)] group ${
+                isFreeSlot ? 'p-1' : 'p-1.5'
+              }`}
             >
-              {/* Badge Indikator Grid */}
-              <span className="absolute top-2 left-2 z-20 px-1.5 py-0.5 rounded-md bg-black/60 backdrop-blur-md border border-white/10 text-[9px] font-mono text-emerald-400">
-                {colSpan}x{rowSpan} ({totalSlotsUsed} Slot)
+              {/* Badge Indikator Grid (Ukuran Teks Menyesuaikan Slot) */}
+              <span className={`absolute top-1 left-1 z-20 px-1 py-0.2 rounded bg-black/70 backdrop-blur-md border border-white/10 font-mono text-emerald-400 ${
+                isFreeSlot ? 'text-[7px]' : 'text-[9px] px-1.5 py-0.5'
+              }`}>
+                {colSpan}x{rowSpan} ({totalSlotsUsed} Slot{isFreeSlot ? ' - Free' : ''})
               </span>
 
               {/* Tombol Edit Isi Banner */}
               <button
                 onClick={() => setIsModalOpen(true)}
-                className="absolute top-2 right-2 z-20 w-6 h-6 rounded-full bg-white/10 hover:bg-white/20 active:scale-90 flex items-center justify-center text-gray-200 text-xs border border-white/10 transition-transform duration-200"
+                className={`absolute top-1 right-1 z-20 rounded-full bg-white/10 hover:bg-white/20 active:scale-90 flex items-center justify-center text-gray-200 border border-white/10 transition-transform ${
+                  isFreeSlot ? 'w-4 h-4 text-[9px]' : 'w-6 h-6 text-xs'
+                }`}
               >
                 ✎
               </button>
 
-              {/* Gambar Banner */}
+              {/* Gambar / Media Banner */}
               <div 
                 onClick={handleBannerClick}
-                className="w-full flex-1 rounded-xl overflow-hidden bg-black/40 relative flex items-center justify-center cursor-pointer active:opacity-90 transition-opacity"
+                className="w-full flex-1 rounded-xl overflow-hidden bg-black/40 relative flex items-center justify-center cursor-pointer active:opacity-90 transition-opacity min-h-0"
               >
                 {bannerData.image ? (
                   <img
@@ -485,115 +516,112 @@ export default function App() {
                     className="w-full h-full object-cover"
                   />
                 ) : (
-                  <div className="flex flex-col items-center justify-center text-gray-500 gap-1 p-2">
-                    <span className="text-xs">Preview Media</span>
+                  <div className="flex flex-col items-center justify-center text-gray-500 gap-0.5 p-1">
+                    <span className={isFreeSlot ? 'text-[8px]' : 'text-xs'}>Preview Media</span>
                   </div>
                 )}
               </div>
 
-              {/* Bawah Banner: FOTO PROFIL + NAMA BRAND (FONT KHUSUS) + MUSIK AUDIO VISUALIZER + MEDSOS DINAMIS */}
-              <div className="w-full flex flex-col items-center justify-center pt-1.5 pb-0.5 px-1">
+              {/* Bagian Bawah Banner: Identitas + Musik + Medsos (Auto Compact Saat 1 Slot) */}
+              <div className={`w-full flex flex-col items-center justify-center ${isFreeSlot ? 'pt-0.5 pb-0' : 'pt-1.5 pb-0.5 px-1'}`}>
                 
-                {/* 1. Baris Identitas: Foto Profil + Nama Brand (Menggunakan Font Khusus Brand Saja) */}
-                <div className="flex items-center justify-center gap-1.5 max-w-full">
+                {/* 1. Baris Identitas (Logo Avatar + Nama Brand Font Khusus) */}
+                <div className="flex items-center justify-center gap-1 max-w-full overflow-hidden">
                   <img 
                     src={userProfile.avatar} 
-                    alt="Avatar Profile" 
-                    className="w-4 h-4 rounded-full object-cover border border-white/20 shadow-sm shrink-0" 
+                    alt="Avatar" 
+                    className={`rounded-full object-cover border border-white/20 shrink-0 ${isFreeSlot ? 'w-2.5 h-2.5' : 'w-4 h-4'}`}
                   />
-                  {isMotionSuper ? (
-                    <span 
-                      style={{ fontFamily: bannerData.brandFont ? bannerData.brandFont : 'inherit' }}
-                      className="text-center font-extrabold text-[12px] md:text-sm tracking-wide bg-gradient-to-r from-emerald-400 via-violet-300 via-pink-400 to-emerald-400 bg-[length:250%_auto] animate-[shimmer_3s_linear_infinite] bg-clip-text text-transparent drop-shadow-[0_0_10px_rgba(167,139,250,0.4)] truncate"
-                    >
-                      {bannerData.name}
-                    </span>
-                  ) : (
-                    <span 
-                      style={{ fontFamily: bannerData.brandFont ? bannerData.brandFont : 'inherit' }}
-                      className="text-center font-bold text-[12px] md:text-sm text-gray-200 tracking-wide truncate"
-                    >
-                      {bannerData.name}
-                    </span>
-                  )}
+                  <span 
+                    style={{ fontFamily: bannerData.brandFont ? bannerData.brandFont : 'inherit' }}
+                    className={`text-center font-extrabold tracking-wide truncate max-w-full ${
+                      isFreeSlot ? 'text-[8px] leading-tight' : 'text-[12px] md:text-sm'
+                    } ${
+                      isMotionSuper
+                        ? 'bg-gradient-to-r from-emerald-400 via-violet-300 to-pink-400 bg-[length:250%_auto] animate-[shimmer_3s_linear_infinite] bg-clip-text text-transparent'
+                        : 'text-gray-200'
+                    }`}
+                  >
+                    {bannerData.name}
+                  </span>
                 </div>
 
-                {/* 2. Pemutar Musik dengan Tombol Play/Pause & Animasi Visualizer / Vinyl Disc yang Bisa Diganti */}
+                {/* 2. Plugin Musik Mini (Compact Mode Saat 1 Slot Agar Tidak Tumpuk/Luber) */}
                 <div 
                   onClick={togglePlayMusic}
-                  className="mt-1 px-2.5 py-0.5 rounded-full bg-white/[0.05] border border-white/10 backdrop-blur-md flex items-center gap-2 cursor-pointer hover:bg-white/[0.09] active:scale-95 transition-all shadow-[0_4px_12px_rgba(0,0,0,0.2)]"
+                  className={`rounded-full bg-white/[0.05] border border-white/10 backdrop-blur-md flex items-center cursor-pointer hover:bg-white/[0.09] active:scale-95 transition-all ${
+                    isFreeSlot ? 'mt-0.5 px-1 py-0 gap-0.5' : 'mt-1 px-2.5 py-0.5 gap-2'
+                  }`}
                 >
-                  {/* Tombol Play / Pause Mandiri */}
-                  <div className="w-3.5 h-3.5 flex items-center justify-center text-emerald-400">
+                  <div className={`flex items-center justify-center text-emerald-400 ${isFreeSlot ? 'w-2 h-2' : 'w-3.5 h-3.5'}`}>
                     {bannerData.isPlayingMusic ? (
-                      <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
+                      <svg width={isFreeSlot ? '6' : '10'} height={isFreeSlot ? '6' : '10'} viewBox="0 0 24 24" fill="currentColor">
                         <rect x="5" y="4" width="4" height="16" rx="1" />
                         <rect x="15" y="4" width="4" height="16" rx="1" />
                       </svg>
                     ) : (
-                      <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
+                      <svg width={isFreeSlot ? '6' : '10'} height={isFreeSlot ? '6' : '10'} viewBox="0 0 24 24" fill="currentColor">
                         <path d="M6 4l14 8-14 8V4z" />
                       </svg>
                     )}
                   </div>
 
-                  <span className="text-[10px] text-gray-300 truncate max-w-[110px]">
+                  <span className={`text-gray-300 truncate ${isFreeSlot ? 'text-[7px] max-w-[40px]' : 'text-[10px] max-w-[110px]'}`}>
                     {bannerData.musicTitle}
                   </span>
 
-                  {/* Lingkaran Disc / Baris Equalizer (Bisa diklik untuk ganti style) */}
                   <div 
                     onClick={toggleVisualizerType}
-                    title="Klik untuk ubah gaya visualizer (Garis / Piringan Hitam)"
-                    className="flex items-center justify-center pl-0.5 cursor-pointer hover:scale-110 transition-transform"
+                    title="Ubah gaya visualizer"
+                    className="flex items-center justify-center cursor-pointer"
                   >
                     {bannerData.musicVisualizerType === 'bars' ? (
-                      /* Mode Garis Equalizer */
-                      <div className="flex items-end gap-[2px] h-2.5">
-                        <span className={`w-[2px] bg-emerald-400 rounded-full transition-all ${bannerData.isPlayingMusic ? 'h-2.5 animate-pulse' : 'h-1'}`} />
-                        <span className={`w-[2px] bg-emerald-400 rounded-full transition-all ${bannerData.isPlayingMusic ? 'h-1.5 animate-ping' : 'h-1.5'}`} />
-                        <span className={`w-[2px] bg-emerald-400 rounded-full transition-all ${bannerData.isPlayingMusic ? 'h-3 animate-pulse' : 'h-1'}`} />
+                      <div className={`flex items-end ${isFreeSlot ? 'gap-[1px] h-1.5' : 'gap-[2px] h-2.5'}`}>
+                        <span className={`bg-emerald-400 rounded-full transition-all ${isFreeSlot ? 'w-[1px]' : 'w-[2px]'} ${bannerData.isPlayingMusic ? 'h-full animate-pulse' : 'h-1'}`} />
+                        <span className={`bg-emerald-400 rounded-full transition-all ${isFreeSlot ? 'w-[1px]' : 'w-[2px]'} ${bannerData.isPlayingMusic ? 'h-2/3 animate-ping' : 'h-1'}`} />
                       </div>
                     ) : (
-                      /* Mode Vinyl Disc Berputar */
-                      <div className={`w-3 h-3 rounded-full border border-emerald-400 bg-black flex items-center justify-center ${bannerData.isPlayingMusic ? 'animate-[spin_2s_linear_infinite]' : ''}`}>
-                        <div className="w-1 h-1 rounded-full bg-emerald-400" />
+                      <div className={`rounded-full border border-emerald-400 bg-black flex items-center justify-center ${
+                        isFreeSlot ? 'w-2 h-2' : 'w-3 h-3'
+                      } ${bannerData.isPlayingMusic ? 'animate-[spin_2s_linear_infinite]' : ''}`}>
+                        <div className={`rounded-full bg-emerald-400 ${isFreeSlot ? 'w-0.5 h-0.5' : 'w-1 h-1'}`} />
                       </div>
                     )}
                   </div>
                 </div>
 
-                {/* 3. Medsos Dinamis: Ikon Terpasang + Tombol [+] Lengkung */}
-                <div className="flex items-center justify-center gap-1.5 mt-1.5 flex-wrap">
-                  {/* Daftar Ikon Medsos yang Sudah Di-upload */}
+                {/* 3. Deretan Medsos Dinamis: Ikon Terpasang + Tombol [+] Lengkung */}
+                <div className={`flex items-center justify-center flex-wrap ${isFreeSlot ? 'gap-0.5 mt-0.5' : 'gap-1.5 mt-1.5'}`}>
                   {bannerData.socials.map((social) => (
                     <a
                       key={social.id}
                       href={social.url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="relative p-0.5 flex items-center justify-center active:scale-90 transition-transform group/icon"
+                      className="relative flex items-center justify-center active:scale-90 transition-transform"
                     >
                       {isMotionSuper && (
-                        <span className="absolute inset-0 rounded-full bg-gradient-to-tr from-emerald-500 via-violet-500 to-pink-500 blur-[2px] opacity-75 animate-[spin_4s_linear_infinite]" />
+                        <span className="absolute inset-0 rounded-full bg-gradient-to-tr from-emerald-500 via-violet-500 to-pink-500 blur-[1px] opacity-75 animate-[spin_4s_linear_infinite]" />
                       )}
                       <img
                         src={social.icon}
                         alt="Social Icon"
-                        className="w-4 h-4 rounded-full relative z-10 object-cover bg-black/60 p-[1px] hover:scale-125 transition-transform"
+                        className={`rounded-full relative z-10 object-cover bg-black/60 p-[0.5px] ${isFreeSlot ? 'w-2.5 h-2.5' : 'w-4 h-4'}`}
                       />
                     </a>
                   ))}
 
-                  {/* Tombol [+] Halus Sudut Lengkung untuk Tambah Medsos (Muncul jika kuota masih ada) */}
+                  {/* Tombol [+] Halus Sudut Lengkung */}
                   {bannerData.socials.length < getMaxSocials() && (
                     <button
                       type="button"
                       onClick={() => setIsAddSocialOpen(true)}
-                      className="w-4 h-4 rounded-full bg-white/[0.08] hover:bg-emerald-500/20 border border-white/20 hover:border-emerald-500/40 text-gray-300 hover:text-emerald-400 flex items-center justify-center transition-all duration-200 active:scale-90"
-                      title={`Tambah Medsos (${bannerData.socials.length}/${getMaxSocials() === 999 ? '∞' : getMaxSocials()})`}
+                      className={`rounded-full bg-white/[0.08] hover:bg-emerald-500/20 border border-white/20 hover:border-emerald-500/40 text-gray-300 hover:text-emerald-400 flex items-center justify-center transition-all duration-200 active:scale-90 ${
+                        isFreeSlot ? 'w-2.5 h-2.5' : 'w-4 h-4'
+                      }`}
+                      title={`Tambah Medsos`}
                     >
-                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                      <svg width={isFreeSlot ? '6' : '10'} height={isFreeSlot ? '6' : '10'} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                         <line x1="12" y1="5" x2="12" y2="19" />
                         <line x1="5" y1="12" x2="19" y2="12" />
                       </svg>
@@ -603,15 +631,15 @@ export default function App() {
 
               </div>
 
-              {/* Handle Resize Sudut Melengkung iOS */}
+              {/* Handle Resize Corner iOS */}
               <div
                 onTouchStart={handleTouchStart}
                 onTouchMove={handleTouchMove}
                 onTouchEnd={handleTouchEnd}
-                className="absolute -bottom-1.5 -right-1.5 w-8 h-8 flex items-center justify-center cursor-nwse-resize z-30 select-none touch-none active:scale-125 transition-transform"
+                className="absolute -bottom-1 -right-1 w-6 h-6 flex items-center justify-center cursor-nwse-resize z-30 select-none touch-none active:scale-125 transition-transform"
                 title="Tarik untuk sesuaikan slot"
               >
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" className="rotate-[-10deg] drop-shadow-[0_0_6px_rgba(255,255,255,0.85)]">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" className="rotate-[-10deg] drop-shadow-[0_0_6px_rgba(255,255,255,0.85)]">
                   <path
                     d="M19 7C19 13.6274 13.6274 19 7 19"
                     stroke="#ffffff"
@@ -626,14 +654,14 @@ export default function App() {
               onClick={() => setIsModalOpen(true)}
               className="rounded-2xl border-2 border-dashed border-emerald-500/30 bg-[#0f1622]/70 hover:bg-[#152030]/80 hover:border-emerald-400/60 flex flex-col items-center justify-center cursor-pointer transition-all duration-300 group active:scale-95"
             >
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="text-emerald-400 group-hover:scale-110 transition-transform">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="text-emerald-400 group-hover:scale-110 transition-transform">
                 <path d="M12 5v14M5 12h14" />
               </svg>
-              <span className="text-[10px] text-emerald-400/80 font-mono mt-1 font-semibold">#1 Buka</span>
+              <span className="text-[9px] text-emerald-400/80 font-mono mt-0.5 font-semibold">#1 Buka</span>
             </div>
           )}
 
-          {/* Sisa Grid Slots Kosong */}
+          {/* Sisa Grid Slots Kosong (Total 100 Slot) */}
           {Array.from({ length: Math.max(0, 100 - (isOccupied ? totalSlotsUsed : 1)) }).map((_, i) => {
             const slotNumber = (isOccupied ? totalSlotsUsed : 1) + i + 1;
             return (
@@ -642,10 +670,10 @@ export default function App() {
                 onClick={() => setIsModalOpen(true)}
                 className="rounded-2xl border border-white/[0.04] bg-[#0f1622]/50 hover:bg-[#152030]/60 hover:border-emerald-500/20 flex flex-col items-center justify-center cursor-pointer transition-all duration-300 group active:scale-95"
               >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" className="text-gray-600 group-hover:text-emerald-400 transition-colors">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" className="text-gray-600 group-hover:text-emerald-400 transition-colors">
                   <path d="M12 5v14M5 12h14" />
                 </svg>
-                <span className="text-[9px] text-gray-600 group-hover:text-gray-400 font-mono mt-0.5">#{slotNumber}</span>
+                <span className="text-[8px] text-gray-600 group-hover:text-gray-400 font-mono mt-0.5">#{slotNumber}</span>
               </div>
             );
           })}
@@ -671,9 +699,8 @@ export default function App() {
               Paket <b>Motion {currentPlan}</b>: maksimal {getMaxSocials() === 999 ? 'Unlimited' : `${getMaxSocials()} medsos`}.
             </p>
 
-            {/* Upload File Icon */}
             <div>
-              <label className="text-[10px] text-gray-400 block mb-1">Unggah Ikon Medsos (PNG / JPG / WebP)</label>
+              <label className="text-[10px] text-gray-400 block mb-1">Unggah Ikon Medsos (PNG/JPG/WebP)</label>
               <label className="w-full border-2 border-dashed border-white/10 hover:border-emerald-500/40 rounded-2xl py-2.5 px-3 flex items-center justify-center gap-2 cursor-pointer bg-[#0a0f16]/60 transition">
                 <input 
                   type="file" 
@@ -692,7 +719,6 @@ export default function App() {
               </label>
             </div>
 
-            {/* URL Medsos */}
             <div>
               <label className="text-[10px] text-gray-400 block mb-1">Tautan / Link Medsos</label>
               <input
@@ -725,7 +751,6 @@ export default function App() {
           <div className="relative w-84 max-w-[88vw] h-full bg-[#0c121e]/90 backdrop-blur-2xl border-r border-white/10 p-5 flex flex-col justify-between shadow-2xl z-10 animate-[slideRight_0.3s_cubic-bezier(0.16,1,0.3,1)]">
             <div className="flex flex-col gap-4 overflow-y-auto pr-1">
               
-              {/* Header Drawer */}
               <div className="flex items-center justify-between pb-3 border-b border-white/10">
                 <span className="font-bold text-sm tracking-wide text-gray-200">Panel Kontrol</span>
                 <button
@@ -763,13 +788,13 @@ export default function App() {
                   <div className="p-3.5 rounded-2xl bg-white/[0.03] border border-white/10 backdrop-blur-xl flex flex-col gap-1.5 shadow-sm">
                     <span className="text-xs font-bold text-gray-200">Status Slot Aktif</span>
                     <span className="text-[11px] text-gray-400">Dimensi Grid: {colSpan} Kolom x {rowSpan} Baris</span>
-                    <span className="text-[11px] text-emerald-400 font-medium">Kapasitas Digunakan: {totalSlotsUsed} Slot</span>
+                    <span className="text-[11px] text-emerald-400 font-medium">Kapasitas Digunakan: {totalSlotsUsed} Slot {isFreeSlot ? '(Gratis)' : ''}</span>
                   </div>
                   <button
                     onClick={() => { setIsMenuOpen(false); setIsModalOpen(true); }}
                     className="w-full py-2.5 rounded-2xl bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 text-xs font-bold hover:bg-emerald-500/30 active:scale-95 transition"
                   >
-                    + Sewa / Atur Banner
+                    + Atur / Sewa Slot
                   </button>
                 </div>
               )}
@@ -779,11 +804,12 @@ export default function App() {
                 <div className="flex flex-col gap-3 text-left">
                   <span className="text-xs font-bold text-gray-300">Pilih Paket Langganan</span>
                   
+                  {/* Motion Basic */}
                   <div 
                     onClick={() => { setCurrentPlan('Basic'); persistAll(bannerData, colSpan, rowSpan, isOccupied, userProfile, 'Basic', uploadedBanners); }}
                     className={`p-3.5 rounded-2xl cursor-pointer transition-all border backdrop-blur-xl ${
                       currentPlan === 'Basic'
-                        ? 'bg-gradient-to-br from-white/15 to-white/5 border-white/40 shadow-[0_0_15px_rgba(255,255,255,0.1)]'
+                        ? 'bg-gradient-to-r from-gray-200/15 via-white/10 to-gray-300/15 border-white/40 shadow-sm'
                         : 'bg-white/[0.02] border-white/5 hover:border-white/20'
                     }`}
                   >
@@ -792,41 +818,43 @@ export default function App() {
                       {currentPlan === 'Basic' && <span className="text-[9px] px-2 py-0.5 rounded-full bg-white/20 text-white font-bold">AKTIF</span>}
                     </div>
                     <p className="text-[10px] text-gray-400 mt-1 leading-relaxed">
-                      Maksimal 2 icon medsos + slot standar.
+                      Putih gradasi abu-abu halus. Maksimal 2 icon medsos.
                     </p>
                   </div>
 
+                  {/* Motion Pro (Berlian Mengkilap) */}
                   <div 
                     onClick={() => { setCurrentPlan('Pro'); persistAll(bannerData, colSpan, rowSpan, isOccupied, userProfile, 'Pro', uploadedBanners); }}
-                    className={`p-3.5 rounded-2xl cursor-pointer transition-all border backdrop-blur-xl ${
+                    className={`p-3.5 rounded-2xl cursor-pointer transition-all border backdrop-blur-xl relative overflow-hidden ${
                       currentPlan === 'Pro'
-                        ? 'bg-gradient-to-br from-violet-600/20 to-blue-600/10 border-violet-500/40 shadow-[0_0_18px_rgba(139,92,246,0.2)]'
-                        : 'bg-white/[0.02] border-white/5 hover:border-violet-500/20'
+                        ? 'bg-gradient-to-r from-cyan-500/25 via-blue-600/30 to-indigo-500/25 border-cyan-400/60 shadow-[0_0_20px_rgba(6,182,212,0.3)]'
+                        : 'bg-white/[0.02] border-white/5 hover:border-cyan-500/20'
                     }`}
                   >
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-violet-300">2. Motion Pro</span>
-                      {currentPlan === 'Pro' && <span className="text-[9px] px-2 py-0.5 rounded-full bg-violet-500/30 text-violet-300 font-bold">AKTIF</span>}
+                      <span className="text-xs font-bold text-cyan-300">2. Motion Pro 💎</span>
+                      {currentPlan === 'Pro' && <span className="text-[9px] px-2 py-0.5 rounded-full bg-cyan-500/30 text-cyan-200 font-bold">AKTIF</span>}
                     </div>
                     <p className="text-[10px] text-gray-400 mt-1 leading-relaxed">
-                      Maksimal 5 icon medsos + neon border glow.
+                      Latar berlian bercahaya mengkilap. Maksimal 5 icon medsos.
                     </p>
                   </div>
 
+                  {/* Motion Super (Emas Modern) */}
                   <div 
                     onClick={() => { setCurrentPlan('Super'); persistAll(bannerData, colSpan, rowSpan, isOccupied, userProfile, 'Super', uploadedBanners); }}
                     className={`p-3.5 rounded-2xl cursor-pointer transition-all border backdrop-blur-xl ${
                       currentPlan === 'Super'
-                        ? 'bg-gradient-to-br from-amber-500/20 to-yellow-600/10 border-amber-500/50 shadow-[0_0_20px_rgba(245,158,11,0.25)]'
+                        ? 'bg-gradient-to-r from-amber-500/30 via-yellow-500/30 to-amber-600/30 border-amber-400/60 shadow-[0_0_24px_rgba(245,158,11,0.35)]'
                         : 'bg-white/[0.02] border-white/5 hover:border-amber-500/20'
                     }`}
                   >
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-amber-300">3. Motion Super</span>
+                      <span className="text-xs font-bold text-amber-300">3. Motion Super ✨</span>
                       {currentPlan === 'Super' && <span className="text-[9px] px-2 py-0.5 rounded-full bg-amber-500/30 text-amber-300 font-bold">AKTIF</span>}
                     </div>
                     <p className="text-[10px] text-gray-400 mt-1 leading-relaxed">
-                      Unlimited medsos + full shimmer animasi bergerak.
+                      Gradasi emas modern bercahaya penuh. Unlimited icon medsos.
                     </p>
                   </div>
                 </div>
@@ -953,7 +981,7 @@ export default function App() {
                   {/* Reset */}
                   <button 
                     onClick={() => {
-                      localStorage.removeItem('promotion_slot_data_v6');
+                      localStorage.removeItem('promotion_slot_data_v7');
                       setIsOccupied(false);
                       setIsMenuOpen(false);
                     }}
@@ -1068,9 +1096,13 @@ export default function App() {
             
             <div className="flex items-center justify-between pb-1">
               <div className="flex items-center gap-2">
-                <span className="text-emerald-400 font-bold text-sm">+ Sewa / Ubah Slot</span>
-                <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 text-[11px] font-semibold border border-emerald-500/20">
-                  Rp {totalPrice.toLocaleString('id-ID')}
+                <span className="text-emerald-400 font-bold text-sm">+ Atur / Pasang Banner</span>
+                <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-semibold border ${
+                  isFreeSlot 
+                    ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40' 
+                    : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                }`}>
+                  {isFreeSlot ? '1 Slot Gratis' : `Rp ${totalPrice.toLocaleString('id-ID')}`}
                 </span>
               </div>
               <button
@@ -1095,21 +1127,28 @@ export default function App() {
             <div>
               <div className="flex items-center justify-between mb-1">
                 <label className="text-xs text-gray-400 font-medium">Aspek Rasio Slot</label>
-                <span className="text-[10px] text-emerald-400 font-mono">Memakan {totalSlotsUsed} Slot</span>
+                <span className="text-[10px] text-emerald-400 font-mono">
+                  {totalSlotsUsed} Slot {isFreeSlot ? '(Gratis)' : `(Bayar ${totalSlotsUsed - 1} Slot)`}
+                </span>
               </div>
               <div className="grid grid-cols-4 gap-2">
-                {['1:1', '9:16', '16:9', '4:5'].map((ratio) => (
+                {[
+                  { label: '1 Slot (Free)', val: '1:1' },
+                  { label: '2x2', val: '2x2' },
+                  { label: '9:16', val: '9:16' },
+                  { label: '16:9', val: '16:9' },
+                ].map((item) => (
                   <button
-                    key={ratio}
+                    key={item.val}
                     type="button"
-                    onClick={() => applyAspectRatio(ratio)}
+                    onClick={() => applyAspectRatio(item.val)}
                     className={`py-2 rounded-xl text-xs font-semibold transition-all duration-200 active:scale-95 ${
-                      selectedRatio === ratio
+                      selectedRatio === item.val
                         ? 'bg-emerald-500/20 border border-emerald-500/50 text-emerald-300 shadow-sm'
                         : 'bg-[#0a0f16]/80 border border-white/5 text-gray-400 hover:text-white'
                     }`}
                   >
-                    {ratio}
+                    {item.label}
                   </button>
                 ))}
               </div>
@@ -1154,16 +1193,16 @@ export default function App() {
             </div>
 
             <button
-              onClick={() => setIsPaymentOpen(true)}
+              onClick={handleProceedRent}
               className="w-full mt-2 py-3 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-black font-bold text-xs tracking-wide shadow-[0_4px_16px_rgba(16,185,129,0.3)] transition-all duration-300 active:scale-95 flex items-center justify-center gap-2"
             >
-              <span>Bayar Rp {totalPrice.toLocaleString('id-ID')} & Pasang</span>
+              <span>{isFreeSlot ? 'Pasang Gratis (1 Slot)' : `Bayar Rp ${totalPrice.toLocaleString('id-ID')} & Pasang`}</span>
             </button>
           </div>
         </div>
       )}
 
-      {/* POPUP BAYAR QRIS */}
+      {/* POPUP BAYAR QRIS (HANYA MUNCUL JIKA LEBIH DARI 1 SLOT) */}
       {isPaymentOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-lg animate-fadeIn">
           <div className="w-full max-w-xs rounded-[32px] bg-[#111722]/95 border border-white/10 p-5 shadow-2xl flex flex-col items-center text-center gap-4">
@@ -1175,8 +1214,8 @@ export default function App() {
             </div>
 
             <div className="flex flex-col">
-              <span className="text-sm font-bold text-white">Konfirmasi Sewa Slot</span>
-              <span className="text-xs text-gray-400 mt-1">Mengambil {totalSlotsUsed} Slot Piksel</span>
+              <span className="text-sm font-bold text-white">Konfirmasi Tambahan Slot</span>
+              <span className="text-xs text-gray-400 mt-1">Total {totalSlotsUsed} Slot (1 Slot Gratis + {totalSlotsUsed - 1} Slot Berbayar)</span>
               <span className="text-lg font-extrabold text-emerald-400 mt-2">
                 Rp {totalPrice.toLocaleString('id-ID')}
               </span>
