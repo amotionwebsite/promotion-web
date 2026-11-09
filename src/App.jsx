@@ -1,18 +1,38 @@
 import React, { useState, useRef, useEffect } from 'react';
+import {
+  Menu,
+  Settings,
+  Play,
+  Pause,
+  Plus,
+  LogIn,
+  Edit3,
+  RotateCw,
+  RotateCcw,
+  Check,
+  X,
+  Save,
+  Upload,
+  Music,
+  Type,
+  CreditCard,
+  ExternalLink,
+  Trash2
+} from 'lucide-react';
 
 export default function App() {
-  // State Langganan Aktif: Default saat ini adalah 'Basic'
+  // State Langganan Aktif: Default 'Basic'
   const [currentPlan, setCurrentPlan] = useState('Basic');
   const [subscriptionExpiry, setSubscriptionExpiry] = useState('12 Des 2026');
 
-  // State Drawer & Full Navigasi
+  // State Drawer & Modal Navigasi
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState('subscription'); // Default tab langsung ke langganan
+  const [activeTab, setActiveTab] = useState('subscription');
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
-  const [authMode, setAuthMode] = useState('login'); // 'login' | 'register'
+  const [authMode, setAuthMode] = useState('login');
 
-  // State Ukuran Grid Slot - DEFAULT 5x1 (Sesuai Gambar 2)
+  // State Ukuran Grid Slot - DEFAULT 5x1
   const [colSpan, setColSpan] = useState(5);
   const [rowSpan, setRowSpan] = useState(1);
   const [selectedRatio, setSelectedRatio] = useState('5:1');
@@ -51,7 +71,7 @@ export default function App() {
     musicTitle: 'iphone-circles',
     musicFile: null,
     isPlayingMusic: false,
-    musicVisualizerType: 'bars', // 'bars' | 'disc'
+    musicVisualizerType: 'bars',
     clicks: 142,
     views: 1890,
     socials: [],
@@ -85,7 +105,7 @@ export default function App() {
 
   // Persistence Load LocalStorage
   useEffect(() => {
-    const saved = localStorage.getItem('promotion_slot_data_v9');
+    const saved = localStorage.getItem('promotion_slot_data_v10');
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
@@ -116,7 +136,7 @@ export default function App() {
 
   const persistAll = (updatedBanner, cols, rows, occupied, profile, plan, history) => {
     localStorage.setItem(
-      'promotion_slot_data_v9',
+      'promotion_slot_data_v10',
       JSON.stringify({
         bannerData: updatedBanner,
         colSpan: cols,
@@ -388,21 +408,18 @@ export default function App() {
   return (
     <div className="min-h-screen bg-[#070b12] text-white flex flex-col items-center p-4 md:p-8 select-none relative overflow-x-hidden font-sans">
       
-      {/* Header Bar Baru: (Menu) + (Logo ProMotion Status) di Kiri, (Masuk/Daftar) di Kanan */}
+      {/* Header Bar */}
       <header className="w-full max-w-md md:max-w-3xl lg:max-w-5xl flex items-center justify-between py-3 px-2 border-b border-white/5 relative z-30">
         
-        {/* SISI KIRI: MENU + [LOGO] PROMOTION [BASIC/PRO/SUPER] SESUAI STATUS LANGGANAN */}
+        {/* SISI KIRI: MENU + [LOGO] PROMOTION [BASIC/PRO/SUPER] */}
         <div className="flex items-center gap-2.5 animate-[fadeIn_0.5s_ease-out]">
           <button 
             onClick={() => setIsMenuOpen(true)}
             className="w-10 h-10 rounded-2xl bg-[#0e1622]/80 backdrop-blur-xl border border-white/10 flex items-center justify-center text-gray-300 hover:text-white hover:border-emerald-500/40 active:scale-90 transition-all shadow-sm"
           >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
-              <path d="M4 7h16M4 12h16M4 17h16" />
-            </svg>
+            <Menu className="w-5 h-5" />
           </button>
 
-          {/* Kotak [Logo] ProMotion [Plan] dengan Background Gradasi Dinamis */}
           <div className={`flex items-center gap-2 px-3 py-1.5 rounded-2xl backdrop-blur-xl border transition-all duration-300 shadow-md ${
             currentPlan === 'Basic'
               ? 'bg-[#0c131f]/80 border-white/10'
@@ -437,16 +454,12 @@ export default function App() {
           </div>
         </div>
 
-        {/* SISI KANAN: TOMBOL MASUK/DAFTAR DENGAN FULL NAVIGASI MODAL */}
+        {/* SISI KANAN: TOMBOL MASUK/DAFTAR */}
         <button
           onClick={() => { setAuthMode('login'); setIsAuthModalOpen(true); }}
           className="px-3.5 py-1.5 text-xs font-bold rounded-2xl bg-white/5 hover:bg-emerald-500/15 border border-white/10 hover:border-emerald-500/30 text-gray-200 hover:text-emerald-400 backdrop-blur-xl transition-all active:scale-95 flex items-center gap-1.5 shadow-sm"
         >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
-            <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
-            <polyline points="10 17 15 12 10 7" />
-            <line x1="15" y1="12" x2="3" y2="12" />
-          </svg>
+          <LogIn className="w-3.5 h-3.5 text-emerald-400" />
           <span>Masuk / Daftar</span>
         </button>
       </header>
@@ -484,24 +497,21 @@ export default function App() {
                 rowSpan === 1 ? 'p-1' : 'p-1.5'
               }`}
             >
-              {/* Badge Ukuran Slot */}
               <span className={`absolute top-1 left-1 z-20 px-1 py-0.2 rounded bg-black/70 backdrop-blur-md border border-white/10 font-mono text-emerald-400 ${
                 rowSpan === 1 ? 'text-[7px]' : 'text-[9px] px-1.5 py-0.5'
               }`}>
                 {colSpan}x{rowSpan} ({totalSlotsUsed} Slot)
               </span>
 
-              {/* Tombol Edit Isi Banner */}
               <button
                 onClick={() => setIsModalOpen(true)}
                 className={`absolute top-1 right-1 z-20 rounded-full bg-white/10 hover:bg-white/20 active:scale-90 flex items-center justify-center text-gray-200 border border-white/10 transition-transform ${
-                  rowSpan === 1 ? 'w-4 h-4 text-[9px]' : 'w-6 h-6 text-xs'
+                  rowSpan === 1 ? 'w-4 h-4' : 'w-6 h-6'
                 }`}
               >
-                ✎
+                <Edit3 className={rowSpan === 1 ? 'w-2.5 h-2.5' : 'w-3 h-3'} />
               </button>
 
-              {/* Gambar / Media Banner */}
               <div 
                 onClick={handleBannerClick}
                 className="w-full flex-1 rounded-xl overflow-hidden bg-black/40 relative flex items-center justify-center cursor-pointer active:opacity-90 transition-opacity min-h-0"
@@ -519,10 +529,8 @@ export default function App() {
                 )}
               </div>
 
-              {/* Bagian Bawah Banner: Jika slot melebar horizontal (misal 5x1 di gambar 2), logo avatar otomatis disembunyikan agar hanya nama yang tampil */}
+              {/* Bawah Banner: Avatar sembunyi saat melebar horizontal rowSpan === 1 */}
               <div className={`w-full flex flex-col items-center justify-center ${rowSpan === 1 ? 'pt-0.5 pb-0' : 'pt-1.5 pb-0.5 px-1'}`}>
-                
-                {/* 1. Baris Identitas (Logo Avatar sembunyi saat melebar rowSpan === 1) */}
                 <div className="flex items-center justify-center gap-1 max-w-full overflow-hidden">
                   {rowSpan > 1 && (
                     <img 
@@ -545,7 +553,7 @@ export default function App() {
                   </span>
                 </div>
 
-                {/* 2. Plugin Musik Mini */}
+                {/* Plugin Musik Mini */}
                 <div 
                   onClick={togglePlayMusic}
                   className={`rounded-full bg-white/[0.05] border border-white/10 backdrop-blur-md flex items-center cursor-pointer hover:bg-white/[0.09] active:scale-95 transition-all ${
@@ -554,14 +562,9 @@ export default function App() {
                 >
                   <div className={`flex items-center justify-center text-emerald-400 ${rowSpan === 1 ? 'w-2.5 h-2.5' : 'w-3.5 h-3.5'}`}>
                     {bannerData.isPlayingMusic ? (
-                      <svg width={rowSpan === 1 ? '8' : '10'} height={rowSpan === 1 ? '8' : '10'} viewBox="0 0 24 24" fill="currentColor">
-                        <rect x="5" y="4" width="4" height="16" rx="1" />
-                        <rect x="15" y="4" width="4" height="16" rx="1" />
-                      </svg>
+                      <Pause className="w-2.5 h-2.5 fill-current" />
                     ) : (
-                      <svg width={rowSpan === 1 ? '8' : '10'} height={rowSpan === 1 ? '8' : '10'} viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M6 4l14 8-14 8V4z" />
-                      </svg>
+                      <Play className="w-2.5 h-2.5 fill-current" />
                     )}
                   </div>
 
@@ -589,7 +592,7 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* 3. Medsos Dinamis: Ikon Terpasang + Tombol [+] Lengkung */}
+                {/* Medsos Dinamis */}
                 {rowSpan > 1 && (
                   <div className="flex items-center justify-center flex-wrap gap-1 mt-1">
                     {bannerData.socials.map((social) => (
@@ -614,10 +617,7 @@ export default function App() {
                         onClick={() => setIsAddSocialOpen(true)}
                         className="w-3.5 h-3.5 rounded-full bg-white/[0.08] hover:bg-emerald-500/20 border border-white/20 text-gray-300 hover:text-emerald-400 flex items-center justify-center transition active:scale-90"
                       >
-                        <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                          <line x1="12" y1="5" x2="12" y2="19" />
-                          <line x1="5" y1="12" x2="19" y2="12" />
-                        </svg>
+                        <Plus className="w-2.5 h-2.5" />
                       </button>
                     )}
                   </div>
@@ -633,14 +633,7 @@ export default function App() {
                 className="absolute -bottom-1 -right-1 w-6 h-6 flex items-center justify-center cursor-nwse-resize z-30 select-none touch-none active:scale-125 transition-transform"
                 title="Tarik untuk sesuaikan slot"
               >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" className="rotate-[-10deg] drop-shadow-[0_0_6px_rgba(255,255,255,0.85)]">
-                  <path
-                    d="M19 7C19 13.6274 13.6274 19 7 19"
-                    stroke="#ffffff"
-                    strokeWidth="3.5"
-                    strokeLinecap="round"
-                  />
-                </svg>
+                <div className="w-2.5 h-2.5 border-r-2 border-b-2 border-emerald-400 rounded-br-sm" />
               </div>
             </div>
           ) : (
@@ -648,14 +641,12 @@ export default function App() {
               onClick={() => setIsModalOpen(true)}
               className="rounded-2xl border-2 border-dashed border-emerald-500/30 bg-[#0f1622]/70 hover:bg-[#152030]/80 hover:border-emerald-400/60 flex flex-col items-center justify-center cursor-pointer transition-all duration-300 group active:scale-95"
             >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="text-emerald-400 group-hover:scale-110 transition-transform">
-                <path d="M12 5v14M5 12h14" />
-              </svg>
+              <Plus className="w-5 h-5 text-emerald-400 group-hover:scale-110 transition-transform" />
               <span className="text-[9px] text-emerald-400/80 font-mono mt-0.5 font-semibold">#1 Buka</span>
             </div>
           )}
 
-          {/* Sisa Grid Slots Kosong */}
+          {/* Sisa Grid Slots */}
           {Array.from({ length: Math.max(0, 100 - (isOccupied ? totalSlotsUsed : 1)) }).map((_, i) => {
             const slotNumber = (isOccupied ? totalSlotsUsed : 1) + i + 1;
             return (
@@ -664,9 +655,7 @@ export default function App() {
                 onClick={() => setIsModalOpen(true)}
                 className="rounded-2xl border border-white/[0.04] bg-[#0f1622]/50 hover:bg-[#152030]/60 hover:border-emerald-500/20 flex flex-col items-center justify-center cursor-pointer transition-all duration-300 group active:scale-95"
               >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" className="text-gray-600 group-hover:text-emerald-400 transition-colors">
-                  <path d="M12 5v14M5 12h14" />
-                </svg>
+                <Plus className="w-3.5 h-3.5 text-gray-600 group-hover:text-emerald-400 transition-colors" />
                 <span className="text-[8px] text-gray-600 group-hover:text-gray-400 font-mono mt-0.5">#{slotNumber}</span>
               </div>
             );
@@ -674,7 +663,7 @@ export default function App() {
 
         </div>
       </div>
-      {/* DRAWER MENU UTAMA (FULL NAVIGASI LANGGANAN, PLUGIN, DAN FOOTER IKON GERIGI) */}
+      {/* DRAWER MENU UTAMA */}
       {isMenuOpen && (
         <div className="fixed inset-0 z-50 flex">
           <div 
@@ -691,7 +680,7 @@ export default function App() {
                   onClick={() => setIsMenuOpen(false)}
                   className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-gray-400 hover:text-white transition active:scale-90"
                 >
-                  ✕
+                  <X className="w-4 h-4" />
                 </button>
               </div>
 
@@ -726,14 +715,15 @@ export default function App() {
                   </div>
                   <button
                     onClick={() => { setIsMenuOpen(false); setIsModalOpen(true); }}
-                    className="w-full py-2.5 rounded-2xl bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 text-xs font-bold hover:bg-emerald-500/30 active:scale-95 transition"
+                    className="w-full py-2.5 rounded-2xl bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 text-xs font-bold hover:bg-emerald-500/30 active:scale-95 transition flex items-center justify-center gap-1.5"
                   >
-                    + Atur / Sewa Slot
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Atur / Sewa Slot</span>
                   </button>
                 </div>
               )}
 
-              {/* TAB 2: FULL NAVIGASI LANGGANAN (PENJELASAN LENGKAP APA YANG DIPEROLEH PRO & SUPER) */}
+              {/* TAB 2: FULL NAVIGASI LANGGANAN */}
               {activeTab === 'subscription' && (
                 <div className="flex flex-col gap-3.5 text-left">
                   <div className="flex items-center justify-between pb-1">
@@ -741,7 +731,7 @@ export default function App() {
                     <span className="text-[10px] text-emerald-400 font-mono font-bold">Saat ini: Motion {currentPlan}</span>
                   </div>
                   
-                  {/* 1. Motion Basic (Paket Bawaan Saat Ini) */}
+                  {/* 1. Motion Basic */}
                   <div 
                     onClick={() => { setCurrentPlan('Basic'); persistAll(bannerData, colSpan, rowSpan, isOccupied, userProfile, 'Basic', uploadedBanners); }}
                     className={`p-3.5 rounded-2xl cursor-pointer transition-all border backdrop-blur-xl ${
@@ -762,7 +752,7 @@ export default function App() {
                     </ul>
                   </div>
 
-                  {/* 2. Motion Pro (Berlian Mengkilap) */}
+                  {/* 2. Motion Pro */}
                   <div 
                     onClick={() => { setCurrentPlan('Pro'); persistAll(bannerData, colSpan, rowSpan, isOccupied, userProfile, 'Pro', uploadedBanners); }}
                     className={`p-3.5 rounded-2xl cursor-pointer transition-all border backdrop-blur-xl relative overflow-hidden ${
@@ -783,7 +773,7 @@ export default function App() {
                     </ul>
                   </div>
 
-                  {/* 3. Motion Super (Emas Modern) */}
+                  {/* 3. Motion Super */}
                   <div 
                     onClick={() => { setCurrentPlan('Super'); persistAll(bannerData, colSpan, rowSpan, isOccupied, userProfile, 'Super', uploadedBanners); }}
                     className={`p-3.5 rounded-2xl cursor-pointer transition-all border backdrop-blur-xl ${
@@ -843,7 +833,7 @@ export default function App() {
 
             </div>
 
-            {/* POJOK BAWAH DRAWER: PROFIL USER + IKON GERIGI LENGKAP */}
+            {/* POJOK BAWAH DRAWER: PROFIL + IKON GERIGI LUCIDE */}
             <div className="pt-3 border-t border-white/10 flex items-center justify-between p-2 rounded-2xl bg-white/[0.02]">
               <div className="flex items-center gap-2.5 truncate">
                 <div className="relative shrink-0">
@@ -860,16 +850,12 @@ export default function App() {
                 </div>
               </div>
 
-              {/* IKON GERIGI (KLIK UNTUK FULL NAVIGASI PENGATURAN PROFIL) */}
               <button
                 onClick={() => { setIsMenuOpen(false); setIsProfileModalOpen(true); }}
                 className="w-8 h-8 rounded-xl bg-white/5 hover:bg-emerald-500/20 border border-white/10 hover:border-emerald-500/40 text-gray-300 hover:text-emerald-400 flex items-center justify-center transition active:scale-90"
                 title="Buka Pengaturan Profil Lengkap"
               >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="12" cy="12" r="3" />
-                  <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
-                </svg>
+                <Settings className="w-4 h-4" />
               </button>
             </div>
 
@@ -877,7 +863,7 @@ export default function App() {
         </div>
       )}
 
-      {/* FULL NAVIGASI MODAL: PENGATURAN PROFIL PENGGUNA (DIBUKA LEWAT IKON GERIGI) */}
+      {/* FULL NAVIGASI MODAL: PENGATURAN PROFIL */}
       {isProfileModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-xl animate-fadeIn">
           <div className="w-full max-w-md rounded-[32px] bg-[#111722]/95 border border-white/10 p-6 shadow-2xl flex flex-col gap-4 text-left max-h-[90vh] overflow-y-auto">
@@ -891,7 +877,7 @@ export default function App() {
                 onClick={() => setIsProfileModalOpen(false)}
                 className="w-7 h-7 rounded-full bg-white/10 text-gray-400 hover:text-white flex items-center justify-center text-xs"
               >
-                ✕
+                <X className="w-4 h-4" />
               </button>
             </div>
 
@@ -933,11 +919,7 @@ export default function App() {
                   onClick={handleSaveProfile}
                   className="w-full py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black text-xs font-bold flex items-center justify-center gap-2 shadow-lg active:scale-95 transition"
                 >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3">
-                    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
-                    <polyline points="17 21 17 13 7 13 7 21" />
-                    <polyline points="7 3 7 8 15 8" />
-                  </svg>
+                  <Save className="w-3.5 h-3.5" />
                   <span>Simpan Perubahan Profil</span>
                 </button>
               </div>
@@ -949,27 +931,19 @@ export default function App() {
               
               <label className="w-full py-2.5 px-3.5 rounded-2xl bg-emerald-500/10 hover:bg-emerald-500/15 border border-emerald-500/25 text-emerald-300 text-xs font-semibold flex items-center justify-between cursor-pointer active:scale-95 transition">
                 <div className="flex items-center gap-2">
-                  <span className="font-bold">T</span>
+                  <Type className="w-4 h-4 text-emerald-400" />
                   <span>Upload Font (.ttf/.otf)</span>
                 </div>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" className="text-emerald-400">
-                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                  <polyline points="17 8 12 3 7 8" />
-                  <line x1="12" y1="3" x2="12" y2="15" />
-                </svg>
+                <Upload className="w-4 h-4 text-emerald-400" />
                 <input type="file" accept=".ttf,.otf" onChange={handleFontUpload} className="hidden" />
               </label>
 
               <label className="w-full py-2.5 px-3.5 rounded-2xl bg-violet-600/15 hover:bg-violet-600/20 border border-violet-500/25 text-violet-300 text-xs font-semibold flex items-center justify-between cursor-pointer active:scale-95 transition">
                 <div className="flex items-center gap-2">
-                  <span>♫</span>
+                  <Music className="w-4 h-4 text-violet-400" />
                   <span>Upload Music (.mp3)</span>
                 </div>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" className="text-violet-400">
-                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                  <polyline points="17 8 12 3 7 8" />
-                  <line x1="12" y1="3" x2="12" y2="15" />
-                </svg>
+                <Upload className="w-4 h-4 text-violet-400" />
                 <input type="file" accept=".mp3,audio/mpeg" onChange={handleMusicUpload} className="hidden" />
               </label>
             </div>
@@ -989,22 +963,22 @@ export default function App() {
               </div>
             </div>
 
-            {/* Reset */}
             <button 
               onClick={() => {
-                localStorage.removeItem('promotion_slot_data_v9');
+                localStorage.removeItem('promotion_slot_data_v10');
                 setIsOccupied(false);
                 setIsProfileModalOpen(false);
               }}
-              className="w-full py-2 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-300 text-xs font-semibold hover:bg-rose-500/20 active:scale-95 transition"
+              className="w-full py-2 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-300 text-xs font-semibold hover:bg-rose-500/20 active:scale-95 transition flex items-center justify-center gap-1.5"
             >
-              Reset Data Banner & Slot
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>Reset Data Banner & Slot</span>
             </button>
           </div>
         </div>
       )}
 
-      {/* FULL NAVIGASI MODAL: MASUK / DAFTAR AKUN (POJOK KANAN ATAS) */}
+      {/* FULL NAVIGASI MODAL: MASUK / DAFTAR AKUN */}
       {isAuthModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-xl animate-fadeIn">
           <div className="w-full max-w-xs rounded-[32px] bg-[#111722]/95 border border-white/10 p-6 shadow-2xl flex flex-col gap-4 text-left">
@@ -1017,7 +991,7 @@ export default function App() {
                 onClick={() => setIsAuthModalOpen(false)}
                 className="w-7 h-7 rounded-full bg-white/10 text-gray-400 hover:text-white flex items-center justify-center text-xs"
               >
-                ✕
+                <X className="w-4 h-4" />
               </button>
             </div>
 
@@ -1100,16 +1074,18 @@ export default function App() {
               <button
                 type="button"
                 onClick={() => setRotateDeg((prev) => prev - 90)}
-                className="px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 text-xs text-gray-300 hover:text-white active:scale-95 transition"
+                className="px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 text-xs text-gray-300 hover:text-white active:scale-95 transition flex items-center gap-1"
               >
-                Putar ↺
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>Putar ↺</span>
               </button>
               <button
                 type="button"
                 onClick={() => setRotateDeg((prev) => prev + 90)}
-                className="px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 text-xs text-gray-300 hover:text-white active:scale-95 transition"
+                className="px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 text-xs text-gray-300 hover:text-white active:scale-95 transition flex items-center gap-1"
               >
-                Putar ↻
+                <RotateCw className="w-3.5 h-3.5" />
+                <span>Putar ↻</span>
               </button>
             </div>
 
@@ -1126,9 +1102,7 @@ export default function App() {
                 onClick={handleConfirmCrop}
                 className="flex-1 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black text-xs font-bold flex items-center justify-center gap-1 active:scale-95 transition shadow-lg"
               >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="20 6 9 17 4 12" />
-                </svg>
+                <Check className="w-3.5 h-3.5" />
                 <span>Terapkan</span>
               </button>
             </div>
@@ -1136,7 +1110,7 @@ export default function App() {
         </div>
       )}
 
-      {/* MODAL POPUP TAMBAH IKON MEDSOS (+) */}
+      {/* MODAL TAMBAH IKON MEDSOS (+) */}
       {isAddSocialOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fadeIn">
           <div className="w-full max-w-xs rounded-[32px] bg-[#111722]/95 border border-white/10 p-5 shadow-2xl flex flex-col gap-3.5 text-left">
@@ -1146,7 +1120,7 @@ export default function App() {
                 onClick={() => setIsAddSocialOpen(false)}
                 className="w-7 h-7 rounded-full bg-white/10 text-gray-400 hover:text-white flex items-center justify-center text-xs"
               >
-                ✕
+                <X className="w-4 h-4" />
               </button>
             </div>
 
@@ -1169,7 +1143,10 @@ export default function App() {
                 {newSocialIcon ? (
                   <img src={newSocialIcon} alt="Icon Preview" className="w-6 h-6 rounded-full object-cover" />
                 ) : (
-                  <span className="text-xs text-emerald-400 font-semibold">+ Pilih File Ikon</span>
+                  <span className="text-xs text-emerald-400 font-semibold flex items-center gap-1.5">
+                    <Upload className="w-3.5 h-3.5" />
+                    <span>Pilih File Ikon</span>
+                  </span>
                 )}
               </label>
             </div>
@@ -1215,7 +1192,7 @@ export default function App() {
                 onClick={() => setIsModalOpen(false)}
                 className="w-7 h-7 rounded-full bg-emerald-500 text-black flex items-center justify-center font-bold text-sm hover:scale-105 active:scale-95 transition"
               >
-                ✕
+                <X className="w-4 h-4" />
               </button>
             </div>
 
@@ -1277,9 +1254,7 @@ export default function App() {
                   </div>
                 ) : (
                   <>
-                    <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" className="text-emerald-400 mb-1">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                    </svg>
+                    <Upload className="w-5 h-5 text-emerald-400 mb-1" />
                     <span className="text-xs text-gray-300 font-medium">
                       {inputImage ? '✓ Media Terpilih (Klik Ganti)' : 'Pilih Gambar atau Video'}
                     </span>
@@ -1314,10 +1289,7 @@ export default function App() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-lg animate-fadeIn">
           <div className="w-full max-w-xs rounded-[32px] bg-[#111722]/95 border border-white/10 p-5 shadow-2xl flex flex-col items-center text-center gap-4">
             <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                <rect x="2" y="5" width="20" height="14" rx="2" />
-                <line x1="2" y1="10" x2="22" y2="10" />
-              </svg>
+              <CreditCard className="w-6 h-6" />
             </div>
 
             <div className="flex flex-col">
