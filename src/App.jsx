@@ -16,7 +16,15 @@ import {
   Sliders,
   AlertCircle,
   CheckCircle,
-  Volume2
+  Volume2,
+  VolumeX,
+  UserPlus,
+  LogIn,
+  Crop,
+  Folder,
+  Image as ImageIcon,
+  Video,
+  Film
 } from 'lucide-react';
 
 const SOCKET_URL = 'https://promotion-backend-production.up.railway.app';
@@ -25,35 +33,48 @@ const socket = io(SOCKET_URL, {
   reconnectionAttempts: 5,
 });
 
-// Preset Rekomendasi Musik
+// Rekomendasi Lagu Preset
 const RECOMMENDED_TRACKS = [
   { id: 'rec-1', title: 'Cyber City Beats', src: 'https://cdn.freesound.org/previews/612/612081_5674468-lq.mp3' },
   { id: 'rec-2', title: 'Night Lo-Fi Chill', src: 'https://cdn.freesound.org/previews/515/515824_11564757-lq.mp3' },
   { id: 'rec-3', title: 'Neon Electro Vibes', src: 'https://cdn.freesound.org/previews/415/415804_5121236-lq.mp3' }
 ];
 
+// Media Internal Bawaan (Folder Media Sendiri)
+const BUILTIN_GALLERY = {
+  images: [
+    { id: 'img-1', name: 'Cyber Neon', url: 'https://images.unsplash.com/photo-1518770660439-4636190af475?w=500&q=80' },
+    { id: 'img-2', name: 'Minimal Tech', url: 'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=500&q=80' }
+  ],
+  gifs: [
+    { id: 'gif-1', name: 'Matrix Rain', url: 'https://media.giphy.com/media/oEI9uBYSzLpBK/giphy.gif' },
+    { id: 'gif-2', name: 'Retro Grid', url: 'https://media.giphy.com/media/3oEjI6SIIHBdRxXI40/giphy.gif' }
+  ],
+  videos: [
+    { id: 'vid-1', name: 'Abstract Light Flow', url: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4' }
+  ]
+};
+
 export default function App() {
   const [isConnected, setIsConnected] = useState(false);
-  const [isNewUser, setIsNewUser] = useState(true); // Diskon Rp 500 per slot untuk user baru
+  const [isNewUser, setIsNewUser] = useState(true);
+  const [currentPlan, setCurrentPlan] = useState('Pro'); // 'Basic' | 'Pro' | 'Super'
 
-  // Tier Langganan: 'Basic' | 'Pro' | 'Super'
-  const [currentPlan, setCurrentPlan] = useState('Pro');
-
-  // Menu Hamburger & Tab
+  // Navigation & Drawer
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState('langganan'); // 'slots' | 'langganan' | 'plugin'
+  const [activeTab, setActiveTab] = useState('langganan');
+  const [isProfilePageOpen, setIsProfilePageOpen] = useState(false); // Navigasi baru profil
 
-  // User Profile State
+  // Profil Pengguna
   const [userProfile, setUserProfile] = useState({
     name: 'Anak Programmer Indonesia',
     handle: '@anakprogrammer',
     avatar: 'https://cdn-icons-png.flaticon.com/512/3670/3670157.png',
   });
-  const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [editName, setEditName] = useState(userProfile.name);
   const [editAvatar, setEditAvatar] = useState(userProfile.avatar);
 
-  // Default Media Sosial
+  // Media Sosial
   const [socials, setSocials] = useState([
     { id: 1, name: 'TikTok', platform: 'tiktok', url: 'https://tiktok.com/@anakprogrammer', customIcon: null },
     { id: 2, name: 'Discord', platform: 'discord', url: 'https://discord.gg/anakprogrammer', customIcon: null },
@@ -64,15 +85,15 @@ export default function App() {
   const [customSocialUrl, setCustomSocialUrl] = useState('');
   const [customSocialIcon, setCustomSocialIcon] = useState(null);
 
-  // Audio & Equalizer States
+  // Audio & Pemutar Suara
   const [musicTitle, setMusicTitle] = useState('');
   const [musicSrc, setMusicSrc] = useState(null);
   const [isPlayingMusic, setIsPlayingMusic] = useState(false);
   const [isSelectMusicOpen, setIsSelectMusicOpen] = useState(false);
-  const [hasVideoAudio, setHasVideoAudio] = useState(false);
+  const [isVideoMuted, setIsVideoMuted] = useState(false);
   const audioRef = useRef(null);
 
-  // Data 1000 Slots
+  // 1000 Slots Data Grid
   const TOTAL_SLOTS = 1000;
   const [slotsData, setSlotsData] = useState(() => {
     const list = Array.from({ length: TOTAL_SLOTS }, (_, i) => ({
@@ -104,9 +125,11 @@ export default function App() {
     return list;
   });
 
-  // Modal Konfigurasi Banner Slot
+  // Modal Banner Slot & Media Folder Modal
   const [selectedSlotIndex, setSelectedSlotIndex] = useState(null);
   const [isConfigModalOpen, setIsConfigModalOpen] = useState(false);
+  const [isMediaGalleryOpen, setIsMediaGalleryOpen] = useState(false);
+  const [galleryTab, setGalleryTab] = useState('images'); // 'images' | 'videos' | 'gifs'
   const [bannerBrandName, setBannerBrandName] = useState('');
   const [bannerRatio, setBannerRatio] = useState('1:1');
   const [bannerMedia, setBannerMedia] = useState(null);
@@ -114,8 +137,9 @@ export default function App() {
   const [bannerLink, setBannerLink] = useState('');
   const [bannerHasAudio, setBannerHasAudio] = useState(false);
   const [mediaError, setMediaError] = useState('');
+  const [showCropAlert, setShowCropAlert] = useState(false);
 
-  // Sinkronisasi Socket
+  // Socket Synchronization
   useEffect(() => {
     socket.on('connect', () => {
       setIsConnected(true);
@@ -143,7 +167,6 @@ export default function App() {
     socket.emit('update_billboard', patch);
   };
 
-  // Helper Biaya Slot
   const getSlotCost = (ratio) => {
     if (currentPlan === 'Super') return 0;
     let multiplier = 1;
@@ -158,23 +181,28 @@ export default function App() {
     return multiplier * basePrice;
   };
 
-  // Filter Media Video & Validasi Durasi
-  const handleMediaUpload = (e) => {
-    const file = e.target.files[0];
+  // Upload Media dengan Deteksi Rasio & Audio
+  const handleMediaUpload = (file) => {
     if (!file) return;
     setMediaError('');
+    setShowCropAlert(false);
 
-    const isVid = file.type.startsWith('video/');
-    const isGif = file.type === 'image/gif' || file.name.endsWith('.gif');
+    const isVid = file.type?.startsWith('video/') || typeof file === 'string' && file.endsWith('.mp4');
+    const isGif = file.type === 'image/gif' || (typeof file === 'string' && file.endsWith('.gif'));
 
     if (isVid) {
       const vidObj = document.createElement('video');
       vidObj.preload = 'metadata';
-      vidObj.src = URL.createObjectURL(file);
+      vidObj.src = typeof file === 'string' ? file : URL.createObjectURL(file);
 
       vidObj.onloadedmetadata = () => {
-        window.URL.revokeObjectURL(vidObj.src);
         const duration = vidObj.duration;
+        const width = vidObj.videoWidth;
+        const height = vidObj.videoHeight;
+
+        if (width / height > 1.3 || height / width > 1.3) {
+          setShowCropAlert(true);
+        }
 
         if (currentPlan === 'Basic' && duration > 120) {
           setMediaError('Durasi video basic maks 2 menit! Upgrade ke Pro atau Super.');
@@ -185,29 +213,43 @@ export default function App() {
           return;
         }
 
-        const hasAudio = true;
-        setBannerHasAudio(hasAudio);
-        if (hasAudio) {
-          setMusicTitle('');
-          setMusicSrc(null);
-          setIsPlayingMusic(false);
-        }
+        setBannerHasAudio(true);
+        setMusicTitle('');
+        setMusicSrc(null);
+        setIsPlayingMusic(false);
 
-        const reader = new FileReader();
-        reader.onload = (ev) => {
-          setBannerMedia(ev.target.result);
+        if (typeof file === 'string') {
+          setBannerMedia(file);
           setBannerMediaType('video');
-        };
-        reader.readAsDataURL(file);
+        } else {
+          const reader = new FileReader();
+          reader.onload = (ev) => {
+            setBannerMedia(ev.target.result);
+            setBannerMediaType('video');
+          };
+          reader.readAsDataURL(file);
+        }
       };
     } else {
       setBannerHasAudio(false);
-      const reader = new FileReader();
-      reader.onload = (ev) => {
-        setBannerMedia(ev.target.result);
+      if (typeof file === 'string') {
+        setBannerMedia(file);
         setBannerMediaType(isGif ? 'gif' : 'image');
-      };
-      reader.readAsDataURL(file);
+      } else {
+        const img = new Image();
+        img.src = URL.createObjectURL(file);
+        img.onload = () => {
+          if (img.width / img.height > 1.3 || img.height / img.width > 1.3) {
+            setShowCropAlert(true);
+          }
+        };
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          setBannerMedia(ev.target.result);
+          setBannerMediaType(isGif ? 'gif' : 'image');
+        };
+        reader.readAsDataURL(file);
+      }
     }
   };
 
@@ -225,13 +267,20 @@ export default function App() {
   const handleSaveProfile = () => {
     const updated = { ...userProfile, name: editName, avatar: editAvatar };
     setUserProfile(updated);
-    setIsEditingProfile(false);
+    setIsProfilePageOpen(false);
     broadcastUpdate({ userProfile: updated });
   };
   return (
     <div className="min-h-screen w-full bg-[#070b12] text-zinc-100 flex flex-col items-center selection:bg-emerald-500 selection:text-black">
-      {/* Animasi Style CSS */}
+      {/* Dynamic Keyframes & Entrance Animations */}
       <style>{`
+        @keyframes pageEntrance {
+          0% { opacity: 0; transform: translateY(12px) scale(0.98); }
+          100% { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        .page-enter-anim {
+          animation: pageEntrance 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
         @keyframes proSweep {
           0% { transform: translateX(-150%) skewX(-25deg); }
           50%, 100% { transform: translateX(200%) skewX(-25deg); }
@@ -239,17 +288,17 @@ export default function App() {
         .pro-sweep-light {
           position: absolute;
           inset: 0;
-          background: linear-gradient(90deg, transparent, rgba(56, 189, 248, 0.4), rgba(168, 85, 247, 0.5), transparent);
+          background: linear-gradient(90deg, transparent, rgba(56, 189, 248, 0.45), rgba(168, 85, 247, 0.55), transparent);
           animation: proSweep 3s infinite ease-in-out;
           pointer-events: none;
         }
         @keyframes goldPulseGlow {
-          0%, 100% { box-shadow: 0 0 25px rgba(234, 179, 8, 0.35), inset 0 0 15px rgba(234, 179, 8, 0.2); }
-          50% { box-shadow: 0 0 45px rgba(250, 204, 21, 0.65), inset 0 0 30px rgba(250, 204, 21, 0.45); }
+          0%, 100% { box-shadow: 0 0 25px rgba(234, 179, 8, 0.4), inset 0 0 15px rgba(234, 179, 8, 0.25); }
+          50% { box-shadow: 0 0 50px rgba(250, 204, 21, 0.7), inset 0 0 30px rgba(250, 204, 21, 0.5); }
         }
         .super-gold-card {
-          background: radial-gradient(circle at top right, rgba(234, 179, 8, 0.22), rgba(20, 16, 7, 0.9) 75%), #0c0a06;
-          border: 1.5px solid rgba(250, 204, 21, 0.7);
+          background: radial-gradient(circle at top right, rgba(234, 179, 8, 0.25), rgba(20, 16, 7, 0.92) 75%), #0c0a06;
+          border: 1.5px solid rgba(250, 204, 21, 0.75);
           animation: goldPulseGlow 3.5s infinite ease-in-out;
         }
         @keyframes eqWave {
@@ -257,80 +306,70 @@ export default function App() {
           50% { height: 100%; }
         }
         .eq-bar {
-          animation: eqWave 0.8s infinite ease-in-out alternate;
+          animation: eqWave 0.7s infinite ease-in-out alternate;
         }
       `}</style>
 
-      {/* Header Bar dengan Custom Logo & Icon */}
-      <header className="w-full max-w-7xl flex items-center justify-between py-4 px-4 sm:px-8 sticky top-0 z-40 bg-[#070b12]/85 backdrop-blur-xl border-b border-zinc-850">
-        {/* Hamburger Menu Berputar */}
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => setIsMenuOpen(!isMenuOpen)}
-            className="p-2.5 rounded-2xl bg-zinc-900/90 border border-zinc-800 text-zinc-300 hover:text-white transition-transform duration-300 active:scale-90 flex items-center justify-center"
-          >
-            {isMenuOpen ? (
-              <ChevronLeft className="w-5 h-5 text-emerald-400 rotate-[-180deg] transition-all duration-300" />
-            ) : (
-              <Menu className="w-5 h-5 transition-all duration-300" />
-            )}
-          </button>
-        </div>
-
-        {/* Brand Bar: logopromotion.png + motionpro.png / motionsuper.png */}
-        <div className={`relative overflow-hidden flex items-center gap-2.5 px-4 sm:px-6 py-2 rounded-2xl border transition-all ${
-          currentPlan === 'Super'
-            ? 'super-gold-card'
-            : currentPlan === 'Pro'
-            ? 'bg-zinc-900 border-cyan-400 shadow-[0_0_20px_rgba(6,182,212,0.3)]'
-            : 'bg-zinc-900 border-emerald-500/50 shadow-md'
-        }`}>
-          {currentPlan === 'Pro' && <div className="pro-sweep-light" />}
-
-          {/* Logo ProMotion Custom */}
-          <img src="/logopromotion.png" alt="Logo" className="w-7 h-7 object-contain rounded-lg" />
-
-          <span className="font-black text-base sm:text-lg tracking-wider bg-gradient-to-r from-white via-zinc-200 to-zinc-400 bg-clip-text text-transparent">
+      {/* Bagian Paling Atas: Brand ProMotion & Status Langganan Dipindahkan ke Kiri Atas */}
+      <div className="w-full max-w-7xl px-4 sm:px-8 pt-3 pb-1 flex items-center justify-between">
+        <div className="flex items-center gap-2.5">
+          <img src="/logopromotion.png" alt="ProMotion" className="w-6 h-6 object-contain rounded-md" />
+          <span className="font-black text-sm tracking-wide bg-gradient-to-r from-white to-zinc-400 bg-clip-text text-transparent">
             ProMotion
           </span>
-
-          {/* Badge Icon Custom (motionpro.png & motionsuper.png) */}
-          <span className={`text-[10px] font-black px-2 py-0.5 rounded-md flex items-center gap-1.5 ${
+          <span className={`text-[10px] font-black px-2 py-0.5 rounded-md flex items-center gap-1 ${
             currentPlan === 'Super'
-              ? 'bg-amber-400/20 text-amber-300 border border-amber-400/50'
+              ? 'bg-amber-400/20 text-amber-300 border border-amber-400/40'
               : currentPlan === 'Pro'
-              ? 'bg-cyan-950 text-cyan-300 border border-cyan-500/50'
-              : 'bg-emerald-950 text-emerald-300 border border-emerald-500/40'
+              ? 'bg-cyan-950 text-cyan-300 border border-cyan-500/40'
+              : 'bg-emerald-950 text-emerald-300 border border-emerald-500/30'
           }`}>
             {currentPlan === 'Super' ? (
-              <img src="/motionsuper.png" alt="Super" className="w-4 h-4 object-contain" />
+              <img src="/motionsuper.png" alt="Super" className="w-3.5 h-3.5 object-contain" />
             ) : currentPlan === 'Pro' ? (
-              <img src="/motionpro.png" alt="Pro" className="w-4 h-4 object-contain" />
+              <img src="/motionpro.png" alt="Pro" className="w-3.5 h-3.5 object-contain" />
             ) : (
-              <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+              <ShieldCheck className="w-3 h-3 text-emerald-400" />
             )}
             {currentPlan.toUpperCase()}
           </span>
         </div>
+      </div>
 
-        {/* Status: DAFTAR & LOGIN */}
-        <div className="flex items-center gap-2 sm:gap-3">
-          <button className="px-3.5 py-1.5 rounded-xl bg-zinc-850/80 hover:bg-zinc-800 text-xs font-semibold text-zinc-400 hover:text-white border border-zinc-700/60 transition-all">
-            Daftar
+      {/* Header Utama: Hamburger Menu di Kiri & Gabungan Tombol Daftar/Login di Kanan */}
+      <header className="w-full max-w-7xl flex items-center justify-between py-2.5 px-4 sm:px-8 sticky top-0 z-40 bg-[#070b12]/90 backdrop-blur-xl border-b border-zinc-850">
+        <button
+          onClick={() => setIsMenuOpen(!isMenuOpen)}
+          className="p-2.5 rounded-2xl bg-zinc-900/90 border border-zinc-800 text-zinc-300 hover:text-white transition-transform duration-300 active:scale-90 flex items-center justify-center shadow-md"
+        >
+          {isMenuOpen ? (
+            <ChevronLeft className="w-5 h-5 text-emerald-400 rotate-[-180deg] transition-all duration-300" />
+          ) : (
+            <Menu className="w-5 h-5 transition-all duration-300" />
+          )}
+        </button>
+
+        {/* Tombol Disatukan: Daftar & Login Glassmorphism */}
+        <div className="flex items-center rounded-2xl bg-zinc-900/80 border border-zinc-800/90 p-1 backdrop-blur-md shadow-lg">
+          <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-zinc-400 hover:text-white transition-all">
+            <UserPlus className="w-3.5 h-3.5" />
+            <span>Daftar</span>
           </button>
-          <button className="px-4 py-1.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 border border-emerald-500/40 backdrop-blur-md text-xs font-bold transition-all shadow-[0_0_15px_rgba(16,185,129,0.2)]">
-            Login
+          <div className="w-[1px] h-4 bg-zinc-700/60 my-auto mx-0.5" />
+          <button className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-emerald-500/25 hover:bg-emerald-500/35 text-emerald-400 border border-emerald-500/40 text-xs font-bold transition-all shadow-[0_0_12px_rgba(16,185,129,0.3)]">
+            <LogIn className="w-3.5 h-3.5" />
+            <span>Login</span>
           </button>
         </div>
       </header>
 
-      {/* Hero Header */}
-      <div className="w-full max-w-4xl text-center px-4 pt-6 pb-2">
+      {/* Deskripsi Baru */}
+      <div className="w-full max-w-4xl text-center px-4 pt-6 pb-2 page-enter-anim">
         <span className="px-4 py-1 rounded-full text-xs font-bold bg-emerald-950/60 text-emerald-400 border border-emerald-500/30 shadow-lg">
           Papan Promosi Komunitas Digital
         </span>
-        <p className="text-xs sm:text-sm text-zinc-400 mt-2 max-w-md mx-auto">
-          Pasang banner kreasi Anda, sesuaikan widget grid fleksibel, dan hubungkan media interaktif secara langsung.
+        <p className="text-xs sm:text-sm text-zinc-300 mt-2 max-w-md mx-auto font-medium">
+          Pasang dan promosikan produk anda di ProMotion dengan fitur yang melimpah..
         </p>
         <div className="mt-3 inline-flex items-center gap-2 text-xs text-emerald-400 bg-zinc-900/80 px-3 py-1 rounded-full border border-emerald-500/20">
           <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
@@ -338,15 +377,13 @@ export default function App() {
         </div>
       </div>
 
-      {/* Grid 1000 Slots */}
+      {/* Layout Grid 1000 Slot */}
       <main className="w-full max-w-7xl px-3 sm:px-6 my-4 flex-1 flex flex-col items-center">
         <div className="relative w-full rounded-3xl bg-[#0b0f17]/95 border border-zinc-800/80 p-3 sm:p-6 shadow-2xl backdrop-blur-xl">
           <div className="overflow-x-auto overflow-y-auto max-h-[680px] p-2 rounded-2xl scrollbar-thin scrollbar-thumb-zinc-700 scroll-smooth">
             <div 
               className="grid gap-3 sm:gap-4 min-w-[750px] sm:min-w-full"
-              style={{
-                gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))'
-              }}
+              style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(135px, 1fr))' }}
             >
               {slotsData.map((slot, idx) => {
                 const isPro = slot.tier === 'Pro';
@@ -365,7 +402,7 @@ export default function App() {
                       setBannerHasAudio(slot.hasAudio || false);
                       setIsConfigModalOpen(true);
                     }}
-                    className={`relative group rounded-2xl flex flex-col justify-between cursor-pointer transition-all duration-300 min-h-[135px] p-3 overflow-hidden select-none hover:scale-[1.02] ${
+                    className={`relative group rounded-2xl flex flex-col justify-between cursor-pointer transition-all duration-300 min-h-[160px] p-3 overflow-hidden select-none hover:scale-[1.02] ${
                       slot.filled
                         ? isSuper 
                           ? 'super-gold-card'
@@ -377,25 +414,48 @@ export default function App() {
                   >
                     {slot.filled && isPro && <div className="pro-sweep-light" />}
 
-                    {/* Widget Grid Hijau Pojok */}
+                    {/* Atas Slot: Status Langganan & Size Tanpa Garis Samping */}
                     <div className="w-full flex items-center justify-between text-[10px] z-10">
-                      <span className="font-bold text-emerald-400 bg-emerald-950/80 px-1.5 py-0.5 rounded border border-emerald-500/30">
-                        {slot.ratio}
-                      </span>
+                      <div className="flex flex-col">
+                        <span className="text-[9px] font-black uppercase text-zinc-400">
+                          {slot.tier || currentPlan}
+                        </span>
+                        <span className="font-bold text-emerald-400">
+                          {slot.ratio}
+                        </span>
+                      </div>
                       <div className="w-4 h-4 rounded-md bg-emerald-500/20 border border-emerald-400 flex items-center justify-center transition-transform duration-300 group-hover:scale-125 shadow-[0_0_8px_rgba(16,185,129,0.6)]">
                         <div className="w-1.5 h-1.5 bg-emerald-400 rounded-sm" />
                       </div>
                     </div>
 
-                    {/* Konten Slot */}
+                    {/* Konten Banner Media */}
                     {slot.filled ? (
                       <div className="w-full flex-1 flex flex-col items-center justify-center my-1.5 z-10">
                         {slot.media ? (
-                          <div className="w-full h-14 rounded-xl overflow-hidden bg-black/60 flex items-center justify-center">
+                          <div className="w-full h-16 rounded-xl overflow-hidden bg-black/60 flex items-center justify-center relative">
                             {slot.mediaType === 'video' ? (
-                              <video src={slot.media} autoPlay loop muted playsInline className="w-full h-full object-cover" />
+                              <video
+                                src={slot.media}
+                                autoPlay
+                                loop
+                                playsInline
+                                muted={isVideoMuted}
+                                className="w-full h-full object-cover"
+                              />
                             ) : (
                               <img src={slot.media} alt="Slot Visual" className="w-full h-full object-cover" />
+                            )}
+                            {slot.mediaType === 'video' && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setIsVideoMuted(!isVideoMuted);
+                                }}
+                                className="absolute bottom-1 right-1 p-1 rounded-md bg-black/60 text-white hover:bg-black/80"
+                              >
+                                {isVideoMuted ? <VolumeX className="w-3 h-3" /> : <Volume2 className="w-3 h-3 text-emerald-400" />}
+                              </button>
                             )}
                           </div>
                         ) : (
@@ -411,24 +471,44 @@ export default function App() {
                       </div>
                     )}
 
-                    {/* Bawah Slot: Avatar, Nama, Audio Indicator */}
+                    {/* Bawah Banner Terstruktur: Profil -> Medsos -> Musik Equalizer */}
                     {slot.filled && (
-                      <div className="w-full flex items-center justify-between pt-1 border-t border-zinc-800/60 z-10">
+                      <div className="w-full flex flex-col gap-1 pt-1.5 border-t border-zinc-800/60 z-10 text-[9px]">
+                        {/* 1. Foto Profil + Nama */}
                         <div className="flex items-center gap-1.5 truncate">
-                          <img src={userProfile.avatar} alt="Avatar" className="w-4 h-4 rounded-full object-cover border border-emerald-400/60" />
-                          <span className="text-[9px] text-zinc-300 truncate max-w-[65px]">{userProfile.name}</span>
+                          <img src={userProfile.avatar} alt="Avatar" className="w-3.5 h-3.5 rounded-full object-cover border border-emerald-400/60 shrink-0" />
+                          <span className="text-zinc-200 font-bold truncate max-w-[85px]">{userProfile.name}</span>
                         </div>
-                        {slot.hasAudio ? (
-                          <div className="flex items-center gap-0.5 h-3">
-                            <span className="w-0.5 bg-emerald-400 rounded-full eq-bar" style={{ animationDelay: '0s' }} />
-                            <span className="w-0.5 bg-emerald-400 rounded-full eq-bar" style={{ animationDelay: '0.2s' }} />
-                            <span className="w-0.5 bg-emerald-400 rounded-full eq-bar" style={{ animationDelay: '0.4s' }} />
-                          </div>
-                        ) : (
-                          <span className="text-[9px] text-zinc-500">No Audio</span>
-                        )}
+
+                        {/* 2. Medsos User */}
+                        <div className="flex items-center gap-1 overflow-x-hidden">
+                          {socials.slice(0, 3).map((s) => (
+                            <span key={s.id} className="text-zinc-400 text-[8px] bg-zinc-800/80 px-1 py-0.2 rounded">
+                              {s.name}
+                            </span>
+                          ))}
+                        </div>
+
+                        {/* 3. Musik / Equalizer */}
+                        <div className="flex items-center justify-between text-zinc-400 pt-0.5">
+                          <span className="truncate max-w-[70px] text-[8px]">
+                            {slot.musicTitle || (slot.hasAudio ? 'Video Sound' : 'Tanpa Lagu')}
+                          </span>
+                          {slot.hasAudio ? (
+                            <div className="flex items-center gap-0.5 h-2.5">
+                              <span className="w-0.5 bg-emerald-400 rounded-full eq-bar" style={{ animationDelay: '0s' }} />
+                              <span className="w-0.5 bg-emerald-400 rounded-full eq-bar" style={{ animationDelay: '0.2s' }} />
+                              <span className="w-0.5 bg-emerald-400 rounded-full eq-bar" style={{ animationDelay: '0.4s' }} />
+                            </div>
+                          ) : (
+                            <span className="text-[8px] text-zinc-600">•</span>
+                          )}
+                        </div>
                       </div>
                     )}
+
+                    {/* Widget Resize Hijau Gradasi di Pojok Kanan Bawah */}
+                    <div className="absolute bottom-1 right-1 w-2.5 h-2.5 rounded-br-md bg-gradient-to-br from-emerald-400 to-teal-600 opacity-70 group-hover:opacity-100 transition-opacity pointer-events-none" />
                   </div>
                 );
               })}
@@ -436,11 +516,139 @@ export default function App() {
           </div>
         </div>
       </main>
-      {/* Modal Konfigurasi Banner Slot */}
+      {/* Navigasi Penuh Pengaturan Profil (Muncul saat Ikon Pensil Diklik) */}
+      {isProfilePageOpen && (
+        <div className="fixed inset-0 bg-[#070b12] z-50 flex flex-col items-center p-6 page-enter-anim overflow-y-auto">
+          <div className="w-full max-w-md flex flex-col gap-5">
+            <div className="flex items-center justify-between pb-3 border-b border-zinc-800">
+              <button
+                onClick={() => setIsProfilePageOpen(false)}
+                className="flex items-center gap-1.5 text-xs font-bold text-zinc-400 hover:text-white"
+              >
+                <ChevronLeft className="w-4 h-4 text-emerald-400" /> Kembali
+              </button>
+              <span className="text-sm font-black text-white">Atur Profil Saya</span>
+              <div className="w-6" />
+            </div>
+
+            <div className="flex flex-col items-center gap-3">
+              <img src={editAvatar} alt="Profile" className="w-20 h-20 rounded-2xl object-cover border-2 border-emerald-500 shadow-xl" />
+              <label className="px-3 py-1.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-xs font-semibold cursor-pointer text-zinc-300">
+                Ganti Foto
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => {
+                    const file = e.target.files[0];
+                    if (file) {
+                      const reader = new FileReader();
+                      reader.onload = (ev) => setEditAvatar(ev.target.result);
+                      reader.readAsDataURL(file);
+                    }
+                  }}
+                  className="hidden"
+                />
+              </label>
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-bold text-zinc-400">Nama Tampilan</label>
+              <input
+                type="text"
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                className="w-full bg-[#121620] border border-zinc-800 rounded-xl px-3 py-2 text-xs text-white"
+              />
+            </div>
+
+            <button
+              onClick={handleSaveProfile}
+              className="w-full py-3 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-black font-black text-xs transition-transform active:scale-95 shadow-lg shadow-emerald-500/20"
+            >
+              Simpan Perubahan Profil
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Galeri Media Internal Kustom (Bukan Langsung Galeri Google) */}
+      {isMediaGalleryOpen && (
+        <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center p-4">
+          <div className="w-full max-w-md rounded-3xl bg-[#0e121a] border border-zinc-800 p-5 flex flex-col gap-4 max-h-[85vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-2 border-b border-zinc-800">
+              <div className="flex items-center gap-2">
+                <Folder className="w-4 h-4 text-emerald-400" />
+                <span className="text-xs font-black text-white">Folder Media ProMotion</span>
+              </div>
+              <button onClick={() => setIsMediaGalleryOpen(false)} className="text-zinc-400 hover:text-white">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Tab Folder */}
+            <div className="grid grid-cols-3 gap-2 bg-[#121620] p-1 rounded-xl">
+              <button
+                onClick={() => setGalleryTab('images')}
+                className={`py-1.5 rounded-lg text-xs font-bold ${galleryTab === 'images' ? 'bg-emerald-600 text-white' : 'text-zinc-400'}`}
+              >
+                Gambar
+              </button>
+              <button
+                onClick={() => setGalleryTab('gifs')}
+                className={`py-1.5 rounded-lg text-xs font-bold ${galleryTab === 'gifs' ? 'bg-emerald-600 text-white' : 'text-zinc-400'}`}
+              >
+                GIF
+              </button>
+              <button
+                onClick={() => setGalleryTab('videos')}
+                className={`py-1.5 rounded-lg text-xs font-bold ${galleryTab === 'videos' ? 'bg-emerald-600 text-white' : 'text-zinc-400'}`}
+              >
+                Video
+              </button>
+            </div>
+
+            {/* List Media Folder */}
+            <div className="grid grid-cols-2 gap-2.5">
+              {BUILTIN_GALLERY[galleryTab].map((item) => (
+                <div
+                  key={item.id}
+                  onClick={() => {
+                    handleMediaUpload(item.url);
+                    setIsMediaGalleryOpen(false);
+                  }}
+                  className="p-2 rounded-xl bg-[#141923] border border-zinc-800/80 hover:border-emerald-500/50 cursor-pointer flex flex-col items-center gap-1.5"
+                >
+                  {galleryTab === 'videos' ? (
+                    <video src={item.url} className="w-full h-20 object-cover rounded-lg" />
+                  ) : (
+                    <img src={item.url} alt={item.name} className="w-full h-20 object-cover rounded-lg" />
+                  )}
+                  <span className="text-[10px] text-zinc-300 font-semibold truncate w-full text-center">{item.name}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* Opsi Upload dari Perangkat Sendiri */}
+            <label className="w-full py-2.5 rounded-xl bg-zinc-850 hover:bg-zinc-800 border border-zinc-700 text-xs font-bold text-center text-zinc-200 cursor-pointer flex items-center justify-center gap-2">
+              <Upload className="w-4 h-4 text-emerald-400" /> Upload File dari HP
+              <input
+                type="file"
+                accept="image/*,video/*,.gif"
+                onChange={(e) => {
+                  handleMediaUpload(e.target.files[0]);
+                  setIsMediaGalleryOpen(false);
+                }}
+                className="hidden"
+              />
+            </label>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Konfigurasi Banner */}
       {isConfigModalOpen && (
         <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4">
           <div className="w-full max-w-md rounded-3xl bg-[#0e121a] border border-zinc-800 p-6 flex flex-col gap-4 shadow-2xl relative max-h-[90vh] overflow-y-auto">
-            {/* Header Modal */}
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <span className="text-sm font-black text-emerald-400">+ Konfigurasi Banner</span>
@@ -448,22 +656,18 @@ export default function App() {
                   Slot #{selectedSlotIndex !== null ? selectedSlotIndex + 1 : 1}
                 </span>
               </div>
-              <button
-                onClick={() => setIsConfigModalOpen(false)}
-                className="w-7 h-7 rounded-full bg-emerald-500 hover:bg-emerald-400 text-black flex items-center justify-center transition-transform hover:scale-110"
-              >
+              <button onClick={() => setIsConfigModalOpen(false)} className="w-7 h-7 rounded-full bg-emerald-500 hover:bg-emerald-400 text-black flex items-center justify-center">
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            {/* Nama Brand */}
             <div className="flex flex-col gap-1">
               <label className="text-xs font-bold text-zinc-300">Nama Brand / Produk</label>
               <input
                 type="text"
                 value={bannerBrandName}
                 onChange={(e) => setBannerBrandName(e.target.value)}
-                placeholder="Contoh: Anak Programmer Indonesia"
+                placeholder="Contoh: Toko Online Saya"
                 className="w-full bg-[#141923] border border-zinc-800 focus:border-emerald-500 rounded-xl px-3 py-2 text-xs text-white focus:outline-none"
               />
             </div>
@@ -482,9 +686,7 @@ export default function App() {
                     key={r}
                     onClick={() => setBannerRatio(r)}
                     className={`py-1.5 rounded-xl text-xs font-bold transition-all ${
-                      bannerRatio === r
-                        ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/30'
-                        : 'bg-[#141923] text-zinc-400 hover:text-white border border-zinc-800'
+                      bannerRatio === r ? 'bg-emerald-600 text-white shadow-md' : 'bg-[#141923] text-zinc-400 border border-zinc-800'
                     }`}
                   >
                     {r}
@@ -493,45 +695,61 @@ export default function App() {
               </div>
             </div>
 
-            {/* Media Upload & Pratinjau Bergerak */}
+            {/* Buka Folder Media Sendiri */}
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-bold text-zinc-300">Media Visual (Gambar / GIF / Video)</label>
               {bannerMedia ? (
                 <div className="relative w-full h-36 rounded-2xl overflow-hidden border border-emerald-500/40 bg-black flex items-center justify-center group">
                   {bannerMediaType === 'video' ? (
-                    <video src={bannerMedia} autoPlay loop muted playsInline className="w-full h-full object-contain" />
+                    <video src={bannerMedia} autoPlay loop playsInline controls className="w-full h-full object-contain" />
                   ) : (
-                    <img src={bannerMedia} alt="Preview Bergerak" className="w-full h-full object-contain" />
+                    <img src={bannerMedia} alt="Preview" className="w-full h-full object-contain" />
                   )}
-                  <label className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center text-xs font-bold text-white cursor-pointer transition-opacity">
-                    <Upload className="w-5 h-5 mb-1 text-emerald-400" />
-                    <span>Klik Ganti Media</span>
-                    <input type="file" accept="image/*,video/*,.gif" onChange={handleMediaUpload} className="hidden" />
-                  </label>
+                  <button
+                    onClick={() => setIsMediaGalleryOpen(true)}
+                    className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center text-xs font-bold text-white transition-opacity gap-1.5"
+                  >
+                    <Folder className="w-4 h-4 text-emerald-400" /> Buka Folder Media
+                  </button>
                 </div>
               ) : (
-                <label className="w-full py-5 rounded-2xl bg-[#141923] border border-dashed border-zinc-700 hover:border-emerald-500/60 flex flex-col items-center justify-center gap-1.5 cursor-pointer">
-                  <Upload className="w-5 h-5 text-emerald-400" />
-                  <span className="text-xs font-semibold text-zinc-300">Upload Visual (Video max 2m/10m/Unlimited)</span>
-                  <input type="file" accept="image/*,video/*,.gif" onChange={handleMediaUpload} className="hidden" />
-                </label>
+                <button
+                  onClick={() => setIsMediaGalleryOpen(true)}
+                  className="w-full py-5 rounded-2xl bg-[#141923] border border-dashed border-zinc-700 hover:border-emerald-500 flex flex-col items-center justify-center gap-1.5"
+                >
+                  <Folder className="w-5 h-5 text-emerald-400" />
+                  <span className="text-xs font-semibold text-zinc-300">Buka Folder Media (Gambar, Video, GIF)</span>
+                </button>
+              )}
+
+              {/* Peringatan Auto-Resize / Crop */}
+              {showCropAlert && (
+                <div className="p-2.5 rounded-xl bg-cyan-950/40 border border-cyan-800/40 text-[11px] text-cyan-300 flex items-center justify-between">
+                  <span>Rasio bukan 1:1. Potong otomatis ke 1:1 atau pertahankan rasio dengan biaya slot tambahan.</span>
+                  <button
+                    onClick={() => setBannerRatio('1:1')}
+                    className="px-2 py-1 rounded bg-cyan-600 text-white font-bold ml-2 text-[10px]"
+                  >
+                    Set 1:1
+                  </button>
+                </div>
               )}
 
               {mediaError && (
                 <div className="flex items-center gap-1.5 text-xs text-rose-400 bg-rose-950/40 border border-rose-800/40 px-3 py-1.5 rounded-xl">
-                  <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                  <AlertCircle className="w-4 h-4 shrink-0" />
                   <span>{mediaError}</span>
                 </div>
               )}
             </div>
 
-            {/* Bagian Musik */}
+            {/* Audio Latar Belakang */}
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-bold text-zinc-300">Audio Latar Belakang</label>
               {bannerHasAudio ? (
                 <div className="p-3 rounded-xl bg-amber-950/30 border border-amber-800/40 text-[11px] text-amber-300 flex items-center gap-2">
-                  <Volume2 className="w-4 h-4 flex-shrink-0" />
-                  <span>Video memiliki audio bawaan. Penambahan musik dinonaktifkan.</span>
+                  <Volume2 className="w-4 h-4 shrink-0" />
+                  <span>Video memiliki audio aktif. Penambahan lagu luar dinonaktifkan otomatis.</span>
                 </div>
               ) : musicTitle ? (
                 <div className="p-3 rounded-2xl bg-[#141923] border border-zinc-800 flex items-center justify-between">
@@ -558,19 +776,6 @@ export default function App() {
               )}
             </div>
 
-            {/* Tautan Banner */}
-            <div className="flex flex-col gap-1">
-              <label className="text-xs font-bold text-zinc-300">Tautan Tujuan</label>
-              <input
-                type="text"
-                value={bannerLink}
-                onChange={(e) => setBannerLink(e.target.value)}
-                placeholder="https://linktujuan.com"
-                className="w-full bg-[#141923] border border-zinc-800 focus:border-emerald-500 rounded-xl px-3 py-2 text-xs text-white focus:outline-none"
-              />
-            </div>
-
-            {/* Pasang Sekarang */}
             <button
               onClick={() => {
                 if (selectedSlotIndex === null) return;
@@ -585,7 +790,7 @@ export default function App() {
                   link: bannerLink,
                   ratio: bannerRatio,
                   slotCost: getSlotCost(bannerRatio),
-                  musicTitle: musicTitle || (bannerHasAudio ? 'Video Audio' : ''),
+                  musicTitle: musicTitle || (bannerHasAudio ? 'Video Sound' : ''),
                   tier: currentPlan
                 };
                 setSlotsData(updated);
@@ -636,7 +841,6 @@ export default function App() {
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex justify-end">
           <div className="w-full max-w-sm h-full bg-[#0c1017] border-l border-zinc-800 p-5 flex flex-col justify-between overflow-y-auto">
             <div className="flex flex-col gap-4">
-              {/* Header Drawer */}
               <div className="flex items-center justify-end pb-1 border-b border-zinc-800/50">
                 <button onClick={() => setIsMenuOpen(false)} className="p-1.5 rounded-full bg-zinc-850 text-zinc-400 hover:text-white">
                   <X className="w-4 h-4" />
@@ -658,7 +862,7 @@ export default function App() {
                 ))}
               </div>
 
-              {/* Tab Langganan dengan Icon Custom */}
+              {/* Tab Langganan Tanpa Nomor 1, 2, 3 & Icon Diperbesar di Samping Kata Motion */}
               {activeTab === 'langganan' && (
                 <div className="flex flex-col gap-3">
                   <span className="text-xs font-black text-zinc-400">Pilih Paket Langganan</span>
@@ -674,8 +878,8 @@ export default function App() {
                     }`}
                   >
                     <div className="flex items-center justify-between mb-1">
-                      <span className="text-xs font-bold text-white flex items-center gap-2">
-                        <ShieldCheck className="w-4 h-4 text-zinc-400" /> 1. Motion Basic
+                      <span className="text-xs font-bold text-white flex items-center gap-1.5">
+                        <ShieldCheck className="w-4 h-4 text-emerald-400" /> Motion Basic
                       </span>
                       <span className="text-xs font-black text-emerald-400">Gratis</span>
                     </div>
@@ -686,7 +890,7 @@ export default function App() {
                     </ul>
                   </div>
 
-                  {/* Motion Pro (Icon motionpro.png) */}
+                  {/* Motion Pro (Icon Pro Diperbesar) */}
                   <div
                     onClick={() => {
                       setCurrentPlan('Pro');
@@ -699,7 +903,8 @@ export default function App() {
                     <div className="pro-sweep-light" />
                     <div className="flex items-center justify-between mb-1 relative z-10">
                       <span className="text-xs font-bold text-cyan-300 flex items-center gap-2">
-                        <img src="/motionpro.png" alt="Pro" className="w-4 h-4 object-contain" /> 2. Motion Pro
+                        Motion
+                        <img src="/motionpro.png" alt="Pro" className="w-5 h-5 object-contain shrink-0" />
                       </span>
                       <span className="text-xs font-black text-cyan-300">Rp 29.000 / bln</span>
                     </div>
@@ -710,7 +915,7 @@ export default function App() {
                     </ul>
                   </div>
 
-                  {/* Motion Super (Icon motionsuper.png) */}
+                  {/* Motion Super (Icon Super Diperbesar) */}
                   <div
                     onClick={() => {
                       setCurrentPlan('Super');
@@ -722,7 +927,8 @@ export default function App() {
                   >
                     <div className="flex items-center justify-between mb-1">
                       <span className="text-xs font-bold text-amber-300 flex items-center gap-2">
-                        <img src="/motionsuper.png" alt="Super" className="w-4 h-4 object-contain" /> 3. Motion Super
+                        Motion
+                        <img src="/motionsuper.png" alt="Super" className="w-5 h-5 object-contain shrink-0" />
                       </span>
                       <span className="text-xs font-black text-amber-300">Rp 35.000 / bln</span>
                     </div>
@@ -736,7 +942,7 @@ export default function App() {
               )}
             </div>
 
-            {/* Profil Glassmorphism di Pojok Bawah */}
+            {/* Profile Glassmorphism di Bawah Menu: Klik Pensil Membuka Halaman Profil Penuh */}
             <div className="w-full p-4 rounded-3xl bg-zinc-900/40 border border-zinc-800/80 backdrop-blur-xl flex flex-col gap-3 shadow-2xl mt-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
@@ -747,48 +953,14 @@ export default function App() {
                   </div>
                 </div>
                 <button
-                  onClick={() => setIsEditingProfile(!isEditingProfile)}
-                  className="p-2 rounded-xl bg-zinc-800/80 hover:bg-zinc-700 text-emerald-400"
+                  onClick={() => setIsProfilePageOpen(true)}
+                  className="p-2 rounded-xl bg-zinc-800/80 hover:bg-zinc-700 text-emerald-400 transition-transform active:scale-90"
                 >
                   <Edit2 className="w-3.5 h-3.5" />
                 </button>
               </div>
 
-              {isEditingProfile && (
-                <div className="flex flex-col gap-2 pt-2 border-t border-zinc-800">
-                  <input
-                    type="text"
-                    value={editName}
-                    onChange={(e) => setEditName(e.target.value)}
-                    placeholder="Nama Profil"
-                    className="w-full bg-[#141923] border border-zinc-800 rounded-xl px-2.5 py-1.5 text-xs text-white"
-                  />
-                  <label className="w-full py-1.5 rounded-xl bg-[#141923] border border-dashed border-zinc-700 text-[11px] text-center text-zinc-400 cursor-pointer">
-                    Ganti Foto Profil
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => {
-                        const file = e.target.files[0];
-                        if (file) {
-                          const reader = new FileReader();
-                          reader.onload = (ev) => setEditAvatar(ev.target.result);
-                          reader.readAsDataURL(file);
-                        }
-                      }}
-                      className="hidden"
-                    />
-                  </label>
-                  <button
-                    onClick={handleSaveProfile}
-                    className="w-full py-1.5 rounded-xl bg-emerald-500 font-bold text-black text-xs"
-                  >
-                    Simpan Profil
-                  </button>
-                </div>
-              )}
-
-              {/* Tautan Medsos */}
+              {/* Medsos */}
               <div className="flex items-center gap-1.5 flex-wrap pt-1">
                 {socials.map((s) => (
                   <a
@@ -798,11 +970,7 @@ export default function App() {
                     rel="noreferrer"
                     className="p-1.5 rounded-lg bg-zinc-800/80 border border-zinc-700/60 text-zinc-300 hover:text-emerald-400 text-[10px] flex items-center gap-1"
                   >
-                    {s.customIcon ? (
-                      <img src={s.customIcon} alt={s.name} className="w-3 h-3 rounded-full" />
-                    ) : (
-                      <Globe className="w-3 h-3" />
-                    )}
+                    <Globe className="w-3 h-3" />
                     <span>{s.name}</span>
                   </a>
                 ))}
@@ -823,7 +991,7 @@ export default function App() {
         <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center p-4">
           <div className="w-full max-w-sm rounded-3xl bg-[#0e121a] border border-zinc-800 p-5 flex flex-col gap-3">
             <div className="flex items-center justify-between pb-2 border-b border-zinc-800">
-              <span className="text-xs font-black text-emerald-400">Tambah Icon / Medsos</span>
+              <span className="text-xs font-black text-emerald-400">Tambah Media Sosial</span>
               <button onClick={() => setIsAddSocialModal(false)} className="text-zinc-400 hover:text-white">
                 <X className="w-4 h-4" />
               </button>
@@ -848,22 +1016,6 @@ export default function App() {
               placeholder="https://..."
               className="w-full bg-[#141923] border border-zinc-800 rounded-xl px-3 py-2 text-xs text-white"
             />
-            <label className="w-full py-2 rounded-xl bg-[#141923] border border-dashed border-zinc-700 text-xs text-center text-zinc-400 cursor-pointer">
-              Upload Logo Kustom (Opsional)
-              <input
-                type="file"
-                accept="image/*"
-                onChange={(e) => {
-                  const file = e.target.files[0];
-                  if (file) {
-                    const reader = new FileReader();
-                    reader.onload = (ev) => setCustomSocialIcon(ev.target.result);
-                    reader.readAsDataURL(file);
-                  }
-                }}
-                className="hidden"
-              />
-            </label>
             <button
               onClick={() => {
                 if (!customSocialUrl) return;
@@ -872,13 +1024,12 @@ export default function App() {
                   name: selectedPlatform,
                   platform: selectedPlatform.toLowerCase(),
                   url: customSocialUrl,
-                  customIcon: customSocialIcon
+                  customIcon: null
                 };
                 const updated = [...socials, newEntry];
                 setSocials(updated);
                 setIsAddSocialModal(false);
                 setCustomSocialUrl('');
-                setCustomSocialIcon(null);
                 broadcastUpdate({ socials: updated });
               }}
               className="w-full py-2.5 rounded-xl bg-emerald-500 font-black text-black text-xs"
