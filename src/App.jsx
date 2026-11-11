@@ -5,7 +5,6 @@ import {
   Upload,
   Music,
   Type,
-  CreditCard,
   Trash2,
   Gem,
   Sparkles,
@@ -20,9 +19,12 @@ import {
   Play,
   Pause,
   Edit2,
-  Check,
   X,
-  Volume2
+  Volume2,
+  Video,
+  Image as ImageIcon,
+  CheckCircle,
+  AlertCircle
 } from 'lucide-react';
 
 const SOCKET_URL = 'https://promotion-backend-production.up.railway.app';
@@ -32,72 +34,82 @@ const socket = io(SOCKET_URL, {
 });
 
 export default function App() {
-  // State Status Koneksi Real-time
   const [isConnected, setIsConnected] = useState(false);
-
-  // State Langganan: Default 'Basic'
-  const [currentPlan, setCurrentPlan] = useState('Basic');
-  const [subscriptionExpiry, setSubscriptionExpiry] = useState(null);
-
-  // State Drawer & Modal Navigasi
+  const [currentPlan, setCurrentPlan] = useState('Pro'); // 'Basic' | 'Pro' | 'Super'
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState('subscription');
-  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
-  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
-  const [authMode, setAuthMode] = useState('login');
+  const [activeTab, setActiveTab] = useState('slots'); // 'slots' | 'langganan' | 'plugin'
 
-  // State Ukuran Grid Slot - DEFAULT 5x1
-  const [colSpan, setColSpan] = useState(5);
-  const [rowSpan, setRowSpan] = useState(1);
-  const [selectedRatio, setSelectedRatio] = useState('5x1');
-
-  // State User Profile
+  // Profile States
   const [userProfile, setUserProfile] = useState({
     name: 'Anak Programmer Indonesia',
     handle: '@anakprogrammer',
     avatar: 'https://cdn-icons-png.flaticon.com/512/3670/3670157.png',
   });
-
-  // State Edit Profil Sementara & Auto Save (5 Detik)
   const [tempProfileName, setTempProfileName] = useState(userProfile.name);
   const [tempAvatar, setTempAvatar] = useState(userProfile.avatar);
   const [showSaveBtn, setShowSaveBtn] = useState(false);
   const saveTimerRef = useRef(null);
 
-  // State Crop Foto Profil
-  const [cropModalOpen, setCropModalOpen] = useState(false);
-  const [rawAvatarImage, setRawAvatarImage] = useState(null);
-  const [zoomLevel, setZoomLevel] = useState(1);
-  const [rotateDeg, setRotateDeg] = useState(0);
-
-  // Modal Tambah Medsos
-  const [isAddSocialOpen, setIsAddSocialOpen] = useState(false);
-  const [newSocialIcon, setNewSocialIcon] = useState('Globe');
-  const [newSocialUrl, setNewSocialUrl] = useState('');
+  // Social Links
   const [socials, setSocials] = useState([
     { id: 1, name: 'TikTok', url: 'https://tiktok.com/@anakprogrammer' },
     { id: 2, name: 'Discord', url: 'https://discord.gg/anakprogrammer' },
     { id: 3, name: 'WhatsApp', url: 'https://chat.whatsapp.com' }
   ]);
+  const [isAddSocialOpen, setIsAddSocialOpen] = useState(false);
+  const [newSocialName, setNewSocialName] = useState('');
+  const [newSocialUrl, setNewSocialUrl] = useState('');
 
-  // State Banner & Media Custom
-  const [bannerImage, setBannerImage] = useState(null);
-  const [bannerLink, setBannerLink] = useState('https://linktujuankamu.com');
-  const [brandFont, setBrandFont] = useState('');
-  const [fontName, setFontName] = useState('');
-  
-  // State Musik & Audio Player
+  // Audio State
   const [musicTitle, setMusicTitle] = useState('iphone-circles');
   const [musicFile, setMusicFile] = useState(null);
   const [isPlayingMusic, setIsPlayingMusic] = useState(false);
-  const [musicVisualizerType, setMusicVisualizerType] = useState('bars');
   const audioRef = useRef(null);
 
-  // State Statistik
-  const [clicks, setClicks] = useState(142);
-  const [views, setViews] = useState(1890);
+  // Custom Font
+  const [brandFont, setBrandFont] = useState('');
+  const [fontName, setFontName] = useState('');
 
-  // Sinkronisasi Socket.io Real-time
+  // Billboard & Banner State
+  const [selectedSlotIndex, setSelectedSlotIndex] = useState(null);
+  const [isConfigModalOpen, setIsConfigModalOpen] = useState(false);
+  const [bannerBrandName, setBannerBrandName] = useState('Anak Programmer Indonesia');
+  const [bannerRatio, setBannerRatio] = useState('5:1'); // '1:1', '5:1', '2:2', '9:16', '16:9'
+  const [bannerMedia, setBannerMedia] = useState(null); // URL / Base64
+  const [mediaType, setMediaType] = useState('image'); // 'image' | 'video' | 'gif'
+  const [bannerLink, setBannerLink] = useState('https://linktujuan.com');
+  const [mediaDurationError, setMediaDurationError] = useState('');
+
+  // 1000 Slots Data Array
+  const TOTAL_SLOTS = 1000;
+  const [slotsData, setSlotsData] = useState(() => {
+    const arr = Array.from({ length: TOTAL_SLOTS }, (_, i) => ({
+      id: i + 1,
+      filled: false,
+      brandName: '',
+      media: null,
+      mediaType: 'image',
+      link: '',
+      ratio: '1:1',
+      musicTitle: 'iphone-circles',
+      tier: 'Basic'
+    }));
+    // Default slot #1 aktif terisi
+    arr[0] = {
+      id: 1,
+      filled: true,
+      brandName: 'Anak Programmer Indonesia',
+      media: null,
+      mediaType: 'image',
+      link: 'https://linktujuan.com',
+      ratio: '5:1',
+      musicTitle: 'iphone-circles',
+      tier: 'Pro'
+    };
+    return arr;
+  });
+
+  // Socket Synchronization
   useEffect(() => {
     socket.on('connect', () => {
       setIsConnected(true);
@@ -109,27 +121,20 @@ export default function App() {
     });
 
     socket.on('billboard_data', (data) => {
-      if (data) {
-        if (data.colSpan) setColSpan(data.colSpan);
-        if (data.rowSpan) setRowSpan(data.rowSpan);
-        if (data.currentPlan) setCurrentPlan(data.currentPlan);
-        if (data.userProfile) {
-          setUserProfile(data.userProfile);
-          setTempProfileName(data.userProfile.name);
-          setTempAvatar(data.userProfile.avatar);
-        }
-        if (data.image) setBannerImage(data.image);
-        if (data.link) setBannerLink(data.link);
-        if (data.brandFont) {
-          setBrandFont(data.brandFont);
-          applyCustomFont(data.brandFont);
-        }
-        if (data.musicTitle) setMusicTitle(data.musicTitle);
-        if (data.musicFile) setMusicFile(data.musicFile);
-        if (data.clicks !== undefined) setClicks(data.clicks);
-        if (data.views !== undefined) setViews(data.views);
-        if (data.socials) setSocials(data.socials);
+      if (!data) return;
+      if (data.currentPlan) setCurrentPlan(data.currentPlan);
+      if (data.userProfile) {
+        setUserProfile(data.userProfile);
+        setTempProfileName(data.userProfile.name);
+        setTempAvatar(data.userProfile.avatar);
       }
+      if (data.slotsData) setSlotsData(data.slotsData);
+      if (data.brandFont) {
+        setBrandFont(data.brandFont);
+        applyCustomFont(data.brandFont);
+      }
+      if (data.socials) setSocials(data.socials);
+      if (data.musicTitle) setMusicTitle(data.musicTitle);
     });
 
     return () => {
@@ -139,14 +144,16 @@ export default function App() {
     };
   }, []);
 
-  // Pasang custom font secara dinamis ke head HTML
+  const broadcastUpdate = (patch) => {
+    socket.emit('update_billboard', patch);
+  };
+
   const applyCustomFont = (fontBase64) => {
     if (!fontBase64) return;
-    const styleId = 'custom-brand-font';
-    let styleTag = document.getElementById(styleId);
+    let styleTag = document.getElementById('custom-brand-font');
     if (!styleTag) {
       styleTag = document.createElement('style');
-      styleTag.id = styleId;
+      styleTag.id = 'custom-brand-font';
       document.head.appendChild(styleTag);
     }
     styleTag.innerHTML = `
@@ -161,378 +168,493 @@ export default function App() {
     setFontName('UploadedBrandFont');
   };
 
-  // Upload Custom Font (.ttf/.otf)
-  const handleFontUpload = (e) => {
+  // Validasi Limit Durasi Video Sesuai Tier
+  const handleMediaUpload = (e) => {
     const file = e.target.files[0];
-    if (file) {
+    if (!file) return;
+    setMediaDurationError('');
+
+    const isVid = file.type.startsWith('video/');
+    const isGif = file.type === 'image/gif' || file.name.endsWith('.gif');
+
+    if (isVid) {
+      const videoElement = document.createElement('video');
+      videoElement.preload = 'metadata';
+      videoElement.src = URL.createObjectURL(file);
+
+      videoElement.onloadedmetadata = () => {
+        window.URL.revokeObjectURL(videoElement.src);
+        const durationSec = videoElement.duration;
+
+        // Aturan Durasi:
+        // Basic: max 2 Menit (120 detik)
+        // Motion Pro: max 10 Menit (600 detik)
+        // Motion Super: Unlimited
+        if (currentPlan === 'Basic' && durationSec > 120) {
+          setMediaDurationError('Durasi video melebihi 2 menit! Upgrade ke Motion Pro (10 menit) atau Motion Super (Unlimited).');
+          return;
+        }
+        if (currentPlan === 'Pro' && durationSec > 600) {
+          setMediaDurationError('Durasi video melebihi 10 menit! Upgrade ke Motion Super untuk durasi tanpa batas.');
+          return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          setBannerMedia(ev.target.result);
+          setMediaType('video');
+        };
+        reader.readAsDataURL(file);
+      };
+    } else {
       const reader = new FileReader();
-      reader.onload = (event) => {
-        const base64Font = event.target.result;
-        setBrandFont(base64Font);
-        applyCustomFont(base64Font);
-        broadcastUpdate({ brandFont: base64Font });
+      reader.onload = (ev) => {
+        setBannerMedia(ev.target.result);
+        setMediaType(isGif ? 'gif' : 'image');
       };
       reader.readAsDataURL(file);
     }
   };
 
-  // Upload Custom Musik (.mp3)
-  const handleMusicUpload = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      const audioUrl = URL.createObjectURL(file);
-      setMusicFile(audioUrl);
-      setMusicTitle(file.name.replace(/\.[^/.]+$/, ''));
-      broadcastUpdate({ musicTitle: file.name, musicFile: audioUrl });
-    }
+  const saveSlotConfiguration = () => {
+    if (selectedSlotIndex === null) return;
+    const updated = [...slotsData];
+    updated[selectedSlotIndex] = {
+      ...updated[selectedSlotIndex],
+      filled: true,
+      brandName: bannerBrandName,
+      media: bannerMedia,
+      mediaType: mediaType,
+      link: bannerLink,
+      ratio: bannerRatio,
+      musicTitle: musicTitle,
+      tier: currentPlan
+    };
+    setSlotsData(updated);
+    setIsConfigModalOpen(false);
+    broadcastUpdate({ slotsData: updated });
   };
-
-  // Toggle Musik
-  const togglePlayMusic = () => {
-    if (!audioRef.current) return;
-    if (isPlayingMusic) {
-      audioRef.current.pause();
-      setIsPlayingMusic(false);
-    } else {
-      audioRef.current.play();
-      setIsPlayingMusic(true);
-    }
-  };
-
-  // Auto-Save Nama Profil (Timer 5 Detik)
-  const handleProfileNameChange = (e) => {
-    const val = e.target.value;
-    setTempProfileName(val);
-    setShowSaveBtn(true);
-
-    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
-    saveTimerRef.current = setTimeout(() => {
-      saveProfile(val, tempAvatar);
-    }, 5000);
-  };
-
-  // Simpan Profil Manual / Auto
-  const saveProfile = (nameToSave = tempProfileName, avatarToSave = tempAvatar) => {
-    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
-    const updated = { ...userProfile, name: nameToSave, avatar: avatarToSave };
-    setUserProfile(updated);
-    setShowSaveBtn(false);
-    broadcastUpdate({ userProfile: updated });
-  };
-
-  // Broadcast Perubahan via Socket.io
-  const broadcastUpdate = (patch) => {
-    socket.emit('update_billboard', patch);
-  };
-
-  // Ubah Rasio Grid Banner
-  const handleRatioChange = (ratio, col, row) => {
-    setSelectedRatio(ratio);
-    setColSpan(col);
-    setRowSpan(row);
-    broadcastUpdate({ colSpan: col, rowSpan: row });
-  };
-
-  // Ganti Tier Langganan
-  const handlePlanSelect = (tier) => {
-    setCurrentPlan(tier);
-    broadcastUpdate({ currentPlan: tier });
-  };
-
   return (
-    <div className="min-h-screen bg-[#07090e] text-zinc-100 flex flex-col items-center p-4 selection:bg-[#7c3aed] selection:text-white">
-      {/* Background Glows */}
-      <div className="fixed top-[-10%] left-[20%] w-[350px] h-[350px] bg-violet-600/15 rounded-full blur-[120px] pointer-events-none" />
-      <div className="fixed bottom-[-10%] right-[15%] w-[400px] h-[400px] bg-blue-600/15 rounded-full blur-[140px] pointer-events-none" />
+    <div className="min-h-screen bg-[#070b12] text-zinc-100 flex flex-col items-center selection:bg-emerald-500 selection:text-black overflow-x-hidden">
+      {/* Dynamic Keyframe Animations for Pro & Super */}
+      <style>{`
+        @keyframes sweepLight {
+          0% { transform: translateX(-150%) skewX(-20deg); }
+          50% { transform: translateX(150%) skewX(-20deg); }
+          100% { transform: translateX(150%) skewX(-20deg); }
+        }
+        .pro-sweep-anim {
+          position: absolute;
+          top: 0; left: 0; right: 0; bottom: 0;
+          background: linear-gradient(90deg, transparent, rgba(56, 189, 248, 0.35), rgba(168, 85, 247, 0.4), transparent);
+          animation: sweepLight 3.5s infinite ease-in-out;
+          pointer-events: none;
+        }
+        @keyframes superGlowPulse {
+          0%, 100% { box-shadow: 0 0 20px rgba(234, 179, 8, 0.3), inset 0 0 15px rgba(234, 179, 8, 0.2); }
+          50% { box-shadow: 0 0 35px rgba(250, 204, 21, 0.6), inset 0 0 25px rgba(250, 204, 21, 0.4); }
+        }
+        .super-gold-card {
+          background: radial-gradient(circle at top right, rgba(234, 179, 8, 0.18), rgba(20, 16, 7, 0.85) 75%), #0c0a06;
+          border: 1.5px solid rgba(250, 204, 21, 0.6);
+          animation: superGlowPulse 4s infinite ease-in-out;
+        }
+      `}</style>
 
-      {/* Top Header / Bar */}
-      <header className="w-full max-w-md flex items-center justify-between py-4 px-2 z-10">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-[#7c3aed] to-[#3b82f6] flex items-center justify-center shadow-lg shadow-violet-500/30">
-            <Sparkles className="w-4 h-4 text-white" />
+      {/* Top Navbar */}
+      <header className="w-full max-w-xl flex items-center justify-between py-4 px-4 sticky top-0 z-40 bg-[#070b12]/80 backdrop-blur-md border-b border-zinc-900/60">
+        <button 
+          onClick={() => setIsMenuOpen(true)}
+          className="p-2.5 rounded-2xl bg-zinc-900/80 border border-zinc-800 text-zinc-300 hover:text-white"
+        >
+          <Sliders className="w-5 h-5" />
+        </button>
+
+        {/* Brand Pill */}
+        <div className={`flex items-center gap-2.5 px-4 py-2 rounded-2xl border transition-all ${
+          currentPlan === 'Super'
+            ? 'super-gold-card'
+            : currentPlan === 'Pro'
+            ? 'bg-zinc-900/90 border-cyan-500/50 shadow-[0_0_15px_rgba(6,182,212,0.25)]'
+            : 'bg-zinc-900/90 border-emerald-500/40 shadow-[0_0_15px_rgba(16,185,129,0.15)]'
+        }`}>
+          <div className={`w-6 h-6 rounded-lg flex items-center justify-center font-black text-xs ${
+            currentPlan === 'Super' ? 'bg-amber-400 text-zinc-950' : 'bg-emerald-500 text-black'
+          }`}>
+            P
           </div>
-          <span className="font-bold tracking-wider text-sm bg-gradient-to-r from-violet-400 to-blue-400 bg-clip-text text-transparent">
-            PROMOTION
+          <span className="font-extrabold text-sm tracking-wide text-white">ProMotion</span>
+          
+          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md flex items-center gap-1 ${
+            currentPlan === 'Super' 
+              ? 'bg-amber-400/20 text-amber-300 border border-amber-400/40' 
+              : currentPlan === 'Pro'
+              ? 'bg-cyan-950/80 text-cyan-300 border border-cyan-500/40'
+              : 'bg-emerald-950/80 text-emerald-300 border border-emerald-500/30'
+          }`}>
+            {currentPlan === 'Super' ? <Gem className="w-3 h-3 text-amber-400" /> : <Sparkles className="w-3 h-3 text-cyan-400" />}
+            {currentPlan.toUpperCase()}
           </span>
         </div>
 
-        {/* Live Status Badge */}
-        <div className="flex items-center gap-3">
-          <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold border backdrop-blur-md transition-all ${
-            isConnected 
-              ? 'bg-emerald-950/60 text-emerald-400 border-emerald-500/30 shadow-[0_0_12px_rgba(16,185,129,0.2)]'
-              : 'bg-rose-950/60 text-rose-400 border-rose-500/30'
-          }`}>
-            {isConnected ? <Wifi className="w-3 h-3 text-emerald-400 animate-pulse" /> : <WifiOff className="w-3 h-3 text-rose-400" />}
-            <span>{isConnected ? 'LIVE' : 'OFFLINE'}</span>
-          </div>
-
-          <button 
-            onClick={() => setIsMenuOpen(!isMenuOpen)}
-            className="p-2 rounded-xl bg-zinc-900/80 border border-zinc-800 text-zinc-300 hover:text-white backdrop-blur-md"
-          >
-            <Sliders className="w-4 h-4" />
-          </button>
+        {/* Live Indicator */}
+        <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border ${
+          isConnected ? 'bg-emerald-950/70 text-emerald-400 border-emerald-500/40' : 'bg-rose-950/70 text-rose-400 border-rose-500/40'
+        }`}>
+          {isConnected ? <Wifi className="w-3.5 h-3.5 animate-pulse" /> : <WifiOff className="w-3.5 h-3.5" />}
+          <span>{isConnected ? 'LIVE' : 'OFFLINE'}</span>
         </div>
       </header>
 
-      {/* Main Container */}
-      <main className="w-full max-w-md flex flex-col gap-5 z-10 pb-20">
-        {/* Profile Card */}
-        <div className="relative p-5 rounded-3xl bg-zinc-900/60 border border-zinc-800/80 backdrop-blur-xl shadow-2xl flex flex-col items-center gap-3">
-          <div className="relative group">
-            <img 
-              src={userProfile.avatar} 
-              alt="Avatar" 
-              className="w-20 h-20 rounded-2xl object-cover border-2 border-violet-500/40 p-0.5 shadow-lg shadow-violet-500/20"
-            />
-            <button 
-              onClick={() => setCropModalOpen(true)}
-              className="absolute bottom-[-4px] right-[-4px] p-1.5 rounded-lg bg-violet-600 text-white shadow-md hover:bg-violet-500"
+      {/* Hero Description */}
+      <div className="w-full max-w-xl text-center px-4 pt-6 pb-4">
+        <span className="px-3 py-1 rounded-full text-xs font-semibold bg-emerald-950/50 text-emerald-400 border border-emerald-500/30">
+          Papan Promosi Komunitas Digital
+        </span>
+        <p className="text-xs text-zinc-400 mt-2 max-w-md mx-auto leading-relaxed">
+          Pasang banner kreasi Anda, sesuaikan grid fleksibel, dan hubungkan media interaktif secara langsung.
+        </p>
+        <div className="mt-3 inline-flex items-center gap-1.5 text-xs text-emerald-400 bg-zinc-900/60 px-3 py-1 rounded-full border border-emerald-500/20">
+          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+          Slot 1/{TOTAL_SLOTS}
+        </div>
+      </div>
+
+      {/* Grid Canvas 1000 Slots - Memanjang, Melebar, & Smooth Scrollable */}
+      <div className="w-full max-w-4xl px-3 my-4">
+        <div className="relative w-full rounded-3xl bg-[#0c1017]/90 border border-zinc-800/80 p-4 shadow-2xl backdrop-blur-2xl">
+          {/* Scroll Area */}
+          <div className="overflow-x-auto overflow-y-auto max-h-[650px] p-2 rounded-2xl scrollbar-thin scrollbar-thumb-zinc-700 scroll-smooth">
+            <div 
+              className="grid gap-3 min-w-[700px]"
+              style={{
+                gridTemplateColumns: 'repeat(5, minmax(130px, 1fr))',
+              }}
             >
-              <Edit2 className="w-3 h-3" />
-            </button>
+              {slotsData.map((slot, idx) => {
+                const isPro = slot.tier === 'Pro';
+                const isSuper = slot.tier === 'Super';
+
+                return (
+                  <div
+                    key={slot.id}
+                    onClick={() => {
+                      setSelectedSlotIndex(idx);
+                      setBannerBrandName(slot.brandName || userProfile.name);
+                      setBannerLink(slot.link || 'https://linktujuan.com');
+                      setBannerRatio(slot.ratio || '5:1');
+                      setBannerMedia(slot.media || null);
+                      setMediaType(slot.mediaType || 'image');
+                      setIsConfigModalOpen(true);
+                    }}
+                    className={`relative group rounded-2xl flex flex-col items-center justify-center cursor-pointer transition-all duration-300 min-h-[120px] p-3 overflow-hidden select-none ${
+                      slot.filled
+                        ? isSuper 
+                          ? 'super-gold-card'
+                          : isPro
+                          ? 'bg-zinc-900 border-2 border-cyan-400 shadow-[0_0_20px_rgba(6,182,212,0.3)]'
+                          : 'bg-zinc-900 border border-emerald-500/60 shadow-[0_0_15px_rgba(16,185,129,0.2)]'
+                        : 'bg-[#121620]/70 border border-zinc-800/70 hover:border-zinc-700 hover:bg-zinc-800/40'
+                    }`}
+                  >
+                    {/* Sweep Light Animation for Pro */}
+                    {slot.filled && isPro && <div className="pro-sweep-anim" />}
+
+                    {slot.filled ? (
+                      <div className="w-full h-full flex flex-col items-center justify-between text-center relative z-10">
+                        {/* Header Slot Tag */}
+                        <div className="w-full flex items-center justify-between text-[10px] text-zinc-400 mb-1">
+                          <span className="font-semibold text-emerald-400">{slot.ratio}</span>
+                          <Edit2 className="w-3 h-3 text-zinc-400 opacity-60 group-hover:opacity-100" />
+                        </div>
+
+                        {/* Visual Media Center Slot */}
+                        <div className="w-full flex-1 flex items-center justify-center my-1 rounded-xl overflow-hidden bg-black/40 min-h-[50px]">
+                          {slot.media ? (
+                            slot.mediaType === 'video' ? (
+                              <video src={slot.media} autoPlay loop muted playsInline className="w-full h-full object-cover max-h-[70px]" />
+                            ) : (
+                              <img src={slot.media} alt="Slot Visual" className="w-full h-full object-cover max-h-[70px]" />
+                            )
+                          ) : (
+                            <span className="text-xs font-bold text-emerald-400 px-1 truncate max-w-[110px] font-brand">
+                              {slot.brandName || 'ProMotion'}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Bottom Track Title */}
+                        <div className="text-[10px] text-zinc-400 truncate max-w-full flex items-center gap-1">
+                          <Disc3 className="w-2.5 h-2.5 text-zinc-500" />
+                          <span>{slot.musicTitle}</span>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center justify-center gap-1 text-zinc-600 group-hover:text-zinc-400">
+                        <Plus className="w-5 h-5 transition-transform group-hover:scale-125" />
+                        <span className="text-[10px] font-mono">#{slot.id}</span>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           </div>
-
-          <div className="w-full text-center flex flex-col items-center">
-            <input 
-              type="text" 
-              value={tempProfileName}
-              onChange={handleProfileNameChange}
-              className={`text-center font-bold text-lg bg-transparent border-b border-transparent hover:border-zinc-700 focus:border-violet-500 focus:outline-none transition-all px-2 py-0.5 ${fontName ? 'font-brand' : ''}`}
-            />
-            <p className="text-xs text-zinc-400">{userProfile.handle}</p>
-
-            {showSaveBtn && (
+        </div>
+      </div>
+      {/* Modal Konfigurasi Banner */}
+      {isConfigModalOpen && (
+        <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4">
+          <div className="w-full max-w-md rounded-3xl bg-[#0e121a] border border-zinc-800 p-6 flex flex-col gap-4 shadow-2xl relative">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-bold text-emerald-400">+ Konfigurasi Banner</span>
+                <span className="text-[10px] font-semibold bg-emerald-950 text-emerald-300 px-2 py-0.5 rounded-full border border-emerald-500/30">
+                  Slot #{selectedSlotIndex !== null ? selectedSlotIndex + 1 : 1}
+                </span>
+              </div>
               <button 
-                onClick={() => saveProfile()}
-                className="mt-2 flex items-center gap-1.5 px-3 py-1 rounded-full bg-violet-600 hover:bg-violet-500 text-xs font-medium text-white transition-all shadow-md shadow-violet-600/30"
+                onClick={() => setIsConfigModalOpen(false)}
+                className="w-7 h-7 rounded-full bg-emerald-500 hover:bg-emerald-400 text-black flex items-center justify-center transition-transform hover:scale-110"
               >
-                <Save className="w-3 h-3" /> Simpan Sekarang
+                <X className="w-4 h-4" />
               </button>
-            )}
-          </div>
-
-          {/* Social Links Badge */}
-          <div className="flex flex-wrap items-center justify-center gap-2 mt-1">
-            {socials.map((s) => (
-              <a 
-                key={s.id} 
-                href={s.url} 
-                target="_blank" 
-                rel="noreferrer"
-                className="px-3 py-1 rounded-xl bg-zinc-800/80 border border-zinc-700/60 text-xs text-zinc-300 hover:text-violet-300 hover:border-violet-500/50 flex items-center gap-1.5 transition-all"
-              >
-                {s.name} <ExternalLink className="w-3 h-3 opacity-60" />
-              </a>
-            ))}
-            <button 
-              onClick={() => setIsAddSocialOpen(true)}
-              className="p-1 rounded-xl bg-zinc-800/50 border border-dashed border-zinc-700 text-zinc-400 hover:text-white"
-            >
-              <Plus className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        </div>
-
-        {/* Music Player Bar (With Bars Visualizer) */}
-        <div className="p-4 rounded-2xl bg-zinc-900/60 border border-zinc-800/80 backdrop-blur-xl flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-violet-950/60 border border-violet-800/50 flex items-center justify-center text-violet-400">
-              <Disc3 className={`w-5 h-5 ${isPlayingMusic ? 'animate-spin' : ''}`} />
             </div>
-            <div>
-              <p className="text-xs font-semibold text-zinc-200 truncate max-w-[150px]">{musicTitle}</p>
-              <p className="text-[10px] text-zinc-500">Audio Background</p>
-            </div>
-          </div>
 
-          {/* Visualizer Bars */}
-          <div className="flex items-end gap-1 h-5 px-2">
-            {[40, 90, 60, 100, 75, 45].map((h, i) => (
-              <span 
-                key={i} 
-                style={{ height: isPlayingMusic ? `${h}%` : '20%' }}
-                className={`w-1 rounded-full bg-violet-500 transition-all duration-300 ${isPlayingMusic ? 'animate-pulse' : 'opacity-30'}`}
+            {/* Nama Brand */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-semibold text-zinc-300">Nama Brand / Produk</label>
+              <input 
+                type="text" 
+                value={bannerBrandName} 
+                onChange={(e) => setBannerBrandName(e.target.value)}
+                placeholder="Contoh: Anak Programmer Indonesia"
+                className="w-full bg-[#141923] border border-zinc-800 focus:border-emerald-500 rounded-xl px-3 py-2 text-xs text-white focus:outline-none"
               />
-            ))}
-          </div>
-
-          <div className="flex items-center gap-2">
-            <button 
-              onClick={togglePlayMusic}
-              className="w-8 h-8 rounded-lg bg-violet-600 hover:bg-violet-500 flex items-center justify-center text-white shadow-md shadow-violet-600/30"
-            >
-              {isPlayingMusic ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 ml-0.5" />}
-            </button>
-            <label className="p-2 rounded-lg bg-zinc-800 text-zinc-400 hover:text-white cursor-pointer">
-              <Upload className="w-3.5 h-3.5" />
-              <input type="file" accept="audio/mp3" onChange={handleMusicUpload} className="hidden" />
-            </label>
-          </div>
-
-          {musicFile && <audio ref={audioRef} src={musicFile} loop />}
-        </div>
-
-        {/* Live Billboard Grid Showcase */}
-        <div className="flex flex-col gap-2">
-          <div className="flex items-center justify-between text-xs text-zinc-400 px-1">
-            <span className="font-semibold text-zinc-300">Live Ad Slot ({selectedRatio})</span>
-            <span>{views} Views • {clicks} Clicks</span>
-          </div>
-
-          <div 
-            className="w-full rounded-3xl bg-zinc-900/70 border border-violet-500/30 p-4 backdrop-blur-xl relative overflow-hidden shadow-2xl"
-            style={{
-              display: 'grid',
-              gridTemplateColumns: `repeat(${colSpan}, minmax(0, 1fr))`,
-              minHeight: '140px'
-            }}
-          >
-            {/* Slot Content */}
-            <div className="col-span-full flex flex-col items-center justify-center text-center p-4 rounded-2xl bg-gradient-to-b from-zinc-800/40 to-zinc-900/60 border border-zinc-700/40">
-              <h3 className={`text-base font-bold text-white mb-1 ${fontName ? 'font-brand' : ''}`}>
-                {userProfile.name}
-              </h3>
-              <p className="text-xs text-zinc-400 max-w-xs mb-3">
-                Slot Iklan Promosi Interaktif Terintegrasi Real-Time WebSocket.
-              </p>
-              <a 
-                href={bannerLink} 
-                target="_blank" 
-                rel="noreferrer"
-                onClick={() => {
-                  setClicks(c => c + 1);
-                  broadcastUpdate({ clicks: clicks + 1 });
-                }}
-                className="px-4 py-1.5 rounded-xl bg-gradient-to-r from-violet-600 to-blue-600 text-xs font-semibold text-white shadow-lg shadow-violet-600/30 hover:opacity-90 flex items-center gap-1.5"
-              >
-                Kunjungi Tautan <ExternalLink className="w-3 h-3" />
-              </a>
             </div>
+
+            {/* Aspek Rasio Grid */}
+            <div className="flex flex-col gap-1.5">
+              <div className="flex justify-between items-center text-xs">
+                <span className="font-semibold text-zinc-300">Aspek Rasio Grid</span>
+                <span className="text-emerald-400 text-[11px]">Pilihan Bebas</span>
+              </div>
+              <div className="grid grid-cols-5 gap-2">
+                {['1:1', '5:1', '2x2', '9:16', '16:9'].map((ratio) => (
+                  <button
+                    key={ratio}
+                    onClick={() => setBannerRatio(ratio)}
+                    className={`py-1.5 rounded-xl text-xs font-bold transition-all ${
+                      bannerRatio === ratio 
+                        ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/30' 
+                        : 'bg-[#141923] text-zinc-400 hover:text-white border border-zinc-800'
+                    }`}
+                  >
+                    {ratio}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Media Visual Upload & Dynamic Moving Preview */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-semibold text-zinc-300">Media Visual (Gambar / GIF / Video)</label>
+              
+              {/* Box Pratinjau Bergerak */}
+              {bannerMedia ? (
+                <div className="relative w-full h-36 rounded-2xl overflow-hidden border border-emerald-500/40 bg-black flex items-center justify-center group">
+                  {mediaType === 'video' ? (
+                    <video 
+                      src={bannerMedia} 
+                      autoPlay 
+                      loop 
+                      muted 
+                      playsInline 
+                      className="w-full h-full object-contain"
+                    />
+                  ) : (
+                    <img 
+                      src={bannerMedia} 
+                      alt="Pratinjau Media Bergerak" 
+                      className="w-full h-full object-contain"
+                    />
+                  )}
+                  
+                  {/* Overlay Ganti Media */}
+                  <label className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center text-xs font-semibold text-white cursor-pointer transition-opacity">
+                    <Upload className="w-5 h-5 mb-1 text-emerald-400" />
+                    <span>Klik untuk Mengganti Media</span>
+                    <input type="file" accept="image/*,video/*,.gif" onChange={handleMediaUpload} className="hidden" />
+                  </label>
+                </div>
+              ) : (
+                <label className="w-full py-5 rounded-2xl bg-[#141923] border border-dashed border-zinc-700 hover:border-emerald-500/60 flex flex-col items-center justify-center gap-2 cursor-pointer transition-all">
+                  <Upload className="w-5 h-5 text-emerald-400" />
+                  <span className="text-xs font-medium text-zinc-300">Upload Media Visual</span>
+                  <span className="text-[10px] text-zinc-500">Mendukung Gambar, GIF bergerak, & Video</span>
+                  <input type="file" accept="image/*,video/*,.gif" onChange={handleMediaUpload} className="hidden" />
+                </label>
+              )}
+
+              {/* Error Limit Durasi Video */}
+              {mediaDurationError && (
+                <div className="flex items-center gap-1.5 text-xs text-rose-400 bg-rose-950/40 border border-rose-800/40 px-3 py-1.5 rounded-xl">
+                  <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                  <span>{mediaDurationError}</span>
+                </div>
+              )}
+            </div>
+
+            {/* Tautan Tujuan */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-semibold text-zinc-300">Tautan Tujuan Banner</label>
+              <input 
+                type="text" 
+                value={bannerLink} 
+                onChange={(e) => setBannerLink(e.target.value)}
+                placeholder="https://linktujuan.com"
+                className="w-full bg-[#141923] border border-zinc-800 focus:border-emerald-500 rounded-xl px-3 py-2 text-xs text-white focus:outline-none"
+              />
+            </div>
+
+            {/* Tombol Simpan */}
+            <button 
+              onClick={saveSlotConfiguration}
+              className="w-full py-3 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-black font-extrabold text-xs transition-transform active:scale-95 shadow-lg shadow-emerald-500/20"
+            >
+              Pasang Sekarang (Aktif Real-time)
+            </button>
           </div>
         </div>
+      )}
 
-        {/* Grid Ratio Selector */}
-        <div className="p-4 rounded-2xl bg-zinc-900/50 border border-zinc-800/70 flex items-center justify-between">
-          <span className="text-xs font-medium text-zinc-400 flex items-center gap-1.5">
-            <Layers className="w-3.5 h-3.5 text-violet-400" /> Grid Slot:
-          </span>
-          <div className="flex gap-2">
-            {[
-              { label: '5x1', col: 5, row: 1 },
-              { label: '4x2', col: 4, row: 2 },
-              { label: '3x3', col: 3, row: 3 }
-            ].map((r) => (
-              <button
-                key={r.label}
-                onClick={() => handleRatioChange(r.label, r.col, r.row)}
-                className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all ${
-                  selectedRatio === r.label 
-                    ? 'bg-violet-600 text-white shadow-sm'
-                    : 'bg-zinc-800 text-zinc-400 hover:text-zinc-200'
-                }`}
+      {/* Drawer Kontrol & Pengaturan (TULISAN PUSAT KONTROL TELAH DIHAPUS) */}
+      {isMenuOpen && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex justify-end">
+          <div className="w-full max-w-sm h-full bg-[#0c1017] border-l border-zinc-800 p-5 flex flex-col gap-5 overflow-y-auto">
+            {/* Header Bersih: Hanya Tombol Close */}
+            <div className="flex items-center justify-between pb-2 border-b border-zinc-800/60">
+              <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Pengaturan</span>
+              <button 
+                onClick={() => setIsMenuOpen(false)}
+                className="p-1.5 rounded-full bg-zinc-800 text-zinc-400 hover:text-white"
               >
-                {r.label}
+                <X className="w-4 h-4" />
               </button>
-            ))}
-          </div>
-        </div>
+            </div>
 
-        {/* Subscription Tier Selection */}
-        <div className="flex flex-col gap-3">
-          <span className="text-xs font-semibold text-zinc-400 px-1">Pilih Paket Langganan</span>
-          <div className="grid grid-cols-3 gap-2.5">
-            {[
-              { name: 'Basic', icon: ShieldCheck, color: 'text-zinc-400', border: 'border-zinc-800' },
-              { name: 'Pro', icon: Sparkles, color: 'text-blue-400', border: 'border-blue-500/40' },
-              { name: 'Super', icon: Gem, color: 'text-violet-400', border: 'border-violet-500/40' }
-            ].map((plan) => {
-              const Icon = plan.icon;
-              const isSelected = currentPlan === plan.name;
-              return (
-                <div 
-                  key={plan.name}
-                  onClick={() => handlePlanSelect(plan.name)}
-                  className={`p-3 rounded-2xl border backdrop-blur-md cursor-pointer flex flex-col items-center gap-1.5 transition-all ${
-                    isSelected 
-                      ? 'bg-violet-950/40 border-violet-500 shadow-lg shadow-violet-600/20' 
-                      : 'bg-zinc-900/40 border-zinc-800 hover:border-zinc-700'
+            {/* Navigasi Tab */}
+            <div className="grid grid-cols-3 gap-2 bg-[#121620] p-1 rounded-2xl border border-zinc-800">
+              {['slots', 'langganan', 'plugin'].map((t) => (
+                <button
+                  key={t}
+                  onClick={() => setActiveTab(t)}
+                  className={`py-1.5 rounded-xl text-xs font-bold capitalize transition-all ${
+                    activeTab === t ? 'bg-zinc-800 text-white shadow' : 'text-zinc-400 hover:text-zinc-200'
                   }`}
                 >
-                  <Icon className={`w-5 h-5 ${plan.color}`} />
-                  <span className="text-xs font-bold text-zinc-200">{plan.name}</span>
-                  {isSelected && <span className="text-[9px] text-violet-400 font-medium">Aktif</span>}
+                  {t}
+                </button>
+              ))}
+            </div>
+
+            {/* Konten Tab Langganan */}
+            {activeTab === 'langganan' && (
+              <div className="flex flex-col gap-3">
+                <span className="text-xs font-bold text-zinc-400">Tingkat Langganan Akun</span>
+
+                {/* Motion Basic */}
+                <div 
+                  onClick={() => {
+                    setCurrentPlan('Basic');
+                    broadcastUpdate({ currentPlan: 'Basic' });
+                  }}
+                  className={`p-4 rounded-2xl border cursor-pointer transition-all ${
+                    currentPlan === 'Basic' 
+                      ? 'bg-zinc-900 border-emerald-500/50 shadow-md' 
+                      : 'bg-[#121620]/60 border-zinc-800'
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-bold text-white flex items-center gap-1.5">
+                      <ShieldCheck className="w-4 h-4 text-zinc-400" /> 1. Motion Basic
+                    </span>
+                    {currentPlan === 'Basic' && <span className="text-[10px] bg-emerald-950 text-emerald-400 px-2 py-0.5 rounded-md font-bold">AKTIF</span>}
+                  </div>
+                  <ul className="text-[11px] text-zinc-400 space-y-1 list-disc list-inside">
+                    <li>Slot banner grid standar</li>
+                    <li>Maksimal durasi video 2 menit</li>
+                    <li>Maksimal 2 icon media sosial</li>
+                  </ul>
                 </div>
-              );
-            })}
-          </div>
-        </div>
 
-        {/* Custom Font Upload Box */}
-        <div className="p-4 rounded-2xl bg-zinc-900/50 border border-zinc-800 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <Type className="w-4 h-4 text-violet-400" />
-            <div>
-              <p className="text-xs font-medium text-zinc-200">Custom Typography (.ttf / .otf)</p>
-              <p className="text-[10px] text-zinc-500">{fontName ? 'Font kustom aktif' : 'Gunakan font brand kamu'}</p>
-            </div>
-          </div>
-          <label className="px-3 py-1.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-xs text-zinc-300 cursor-pointer flex items-center gap-1.5">
-            <Upload className="w-3 h-3" /> Pilih Font
-            <input type="file" accept=".ttf,.otf" onChange={handleFontUpload} className="hidden" />
-          </label>
-        </div>
-      </main>
+                {/* Motion Pro (Animasi Cahaya Bergeser / Premium Shimmer) */}
+                <div 
+                  onClick={() => {
+                    setCurrentPlan('Pro');
+                    broadcastUpdate({ currentPlan: 'Pro' });
+                  }}
+                  className={`relative overflow-hidden p-4 rounded-2xl border cursor-pointer transition-all ${
+                    currentPlan === 'Pro' 
+                      ? 'bg-zinc-900 border-cyan-400 shadow-[0_0_20px_rgba(6,182,212,0.3)]' 
+                      : 'bg-[#121620]/60 border-zinc-800'
+                  }`}
+                >
+                  <div className="pro-sweep-anim" />
+                  <div className="flex items-center justify-between mb-2 relative z-10">
+                    <span className="text-xs font-bold text-cyan-300 flex items-center gap-1.5">
+                      <Sparkles className="w-4 h-4 text-cyan-400" /> 2. Motion Pro
+                    </span>
+                    {currentPlan === 'Pro' && <span className="text-[10px] bg-cyan-950 text-cyan-400 px-2 py-0.5 rounded-md font-bold">AKTIF</span>}
+                  </div>
+                  <ul className="text-[11px] text-zinc-400 space-y-1 list-disc list-inside relative z-10">
+                    <li>Efek border neon sweep cyan-blue dinamis</li>
+                    <li>Durasi video ditingkatkan hingga 10 menit</li>
+                    <li>Kapasitas hingga 5 tautan media sosial</li>
+                  </ul>
+                </div>
 
-      {/* Modal Crop Foto Profil */}
-      {cropModalOpen && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="w-full max-w-sm rounded-3xl bg-zinc-900 border border-zinc-800 p-5 flex flex-col items-center gap-4">
-            <h3 className="text-sm font-bold text-zinc-200">Ubah Foto Profil</h3>
-            <div className="w-32 h-32 rounded-2xl border-2 border-dashed border-violet-500/50 flex items-center justify-center overflow-hidden">
-              <img 
-                src={tempAvatar} 
-                alt="Preview" 
-                style={{ transform: `scale(${zoomLevel}) rotate(${rotateDeg}deg)` }}
-                className="w-full h-full object-cover transition-transform" 
-              />
-            </div>
+                {/* Motion Super (Background Emas & Animasi Cahaya Modern) */}
+                <div 
+                  onClick={() => {
+                    setCurrentPlan('Super');
+                    broadcastUpdate({ currentPlan: 'Super' });
+                  }}
+                  className={`p-4 rounded-2xl cursor-pointer transition-all ${
+                    currentPlan === 'Super' 
+                      ? 'super-gold-card text-amber-200' 
+                      : 'bg-[#121620]/60 border border-zinc-800 text-zinc-300'
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-bold text-amber-300 flex items-center gap-1.5">
+                      <Gem className="w-4 h-4 text-amber-400" /> 3. Motion Super
+                    </span>
+                    {currentPlan === 'Super' && <span className="text-[10px] bg-amber-400 text-black px-2 py-0.5 rounded-md font-black">AKTIF</span>}
+                  </div>
+                  <ul className="text-[11px] text-amber-200/80 space-y-1 list-disc list-inside">
+                    <li>Background emas metallic & aura radial pulsasi</li>
+                    <li>Video Unlimited (Tanpa Batas Durasi)</li>
+                    <li>Unlimited tautan icon media sosial</li>
+                  </ul>
+                </div>
+              </div>
+            )}
 
-            {/* Slider Zoom */}
-            <div className="w-full flex flex-col gap-1">
-              <label className="text-[11px] text-zinc-400">Zoom: {zoomLevel}x</label>
-              <input 
-                type="range" min="1" max="2" step="0.1" 
-                value={zoomLevel} 
-                onChange={(e) => setZoomLevel(parseFloat(e.target.value))}
-                className="w-full accent-violet-600"
-              />
-            </div>
-
-            <div className="w-full flex gap-2">
-              <label className="flex-1 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-xs text-center font-medium cursor-pointer">
-                Pilih File
-                <input 
-                  type="file" 
-                  accept="image/*" 
-                  onChange={(e) => {
-                    const file = e.target.files[0];
-                    if (file) setTempAvatar(URL.createObjectURL(file));
-                  }} 
-                  className="hidden" 
-                />
-              </label>
-              <button 
-                onClick={() => {
-                  saveProfile(tempProfileName, tempAvatar);
-                  setCropModalOpen(false);
-                }}
-                className="flex-1 py-2 rounded-xl bg-violet-600 hover:bg-violet-500 text-xs font-semibold text-white"
-              >
-                Terapkan
-              </button>
-            </div>
+            {/* Konten Tab Slots & Custom Profile */}
+            {activeTab === 'slots' && (
+              <div className="flex flex-col gap-4">
+                <span className="text-xs font-bold text-zinc-400">Profil & Personalisasi</span>
+                <div className="p-3 bg-[#121620] rounded-2xl border border-zinc-800 flex items-center gap-3">
+                  <img src={userProfile.avatar} alt="Avatar" className="w-12 h-12 rounded-xl object-cover border border-emerald-500/40" />
+                  <div className="flex-1">
+                    <p className="text-xs font-bold text-white">{userProfile.name}</p>
+                    <p className="text-[10px] text-zinc-400">{userProfile.handle}</p>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
