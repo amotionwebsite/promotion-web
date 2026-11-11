@@ -11,8 +11,6 @@ import {
   Upload,
   ExternalLink,
   ShieldCheck,
-  Sparkles,
-  Gem,
   Disc3,
   Globe,
   Sliders,
@@ -27,7 +25,7 @@ const socket = io(SOCKET_URL, {
   reconnectionAttempts: 5,
 });
 
-// Preset Musik Rekomendasi
+// Preset Rekomendasi Musik
 const RECOMMENDED_TRACKS = [
   { id: 'rec-1', title: 'Cyber City Beats', src: 'https://cdn.freesound.org/previews/612/612081_5674468-lq.mp3' },
   { id: 'rec-2', title: 'Night Lo-Fi Chill', src: 'https://cdn.freesound.org/previews/515/515824_11564757-lq.mp3' },
@@ -45,7 +43,7 @@ export default function App() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('langganan'); // 'slots' | 'langganan' | 'plugin'
 
-  // User Profile
+  // User Profile State
   const [userProfile, setUserProfile] = useState({
     name: 'Anak Programmer Indonesia',
     handle: '@anakprogrammer',
@@ -55,14 +53,14 @@ export default function App() {
   const [editName, setEditName] = useState(userProfile.name);
   const [editAvatar, setEditAvatar] = useState(userProfile.avatar);
 
-  // Default Medsos List dengan icon bawaan & kustom
+  // Default Media Sosial
   const [socials, setSocials] = useState([
     { id: 1, name: 'TikTok', platform: 'tiktok', url: 'https://tiktok.com/@anakprogrammer', customIcon: null },
     { id: 2, name: 'Discord', platform: 'discord', url: 'https://discord.gg/anakprogrammer', customIcon: null },
     { id: 3, name: 'Instagram', platform: 'instagram', url: 'https://instagram.com', customIcon: null }
   ]);
   const [isAddSocialModal, setIsAddSocialModal] = useState(false);
-  const [selectedPlatform, setSelectedPlatform] = useState('tiktok');
+  const [selectedPlatform, setSelectedPlatform] = useState('TikTok');
   const [customSocialUrl, setCustomSocialUrl] = useState('');
   const [customSocialIcon, setCustomSocialIcon] = useState(null);
 
@@ -74,7 +72,7 @@ export default function App() {
   const [hasVideoAudio, setHasVideoAudio] = useState(false);
   const audioRef = useRef(null);
 
-  // 1000 Slots Data Grid
+  // Data 1000 Slots
   const TOTAL_SLOTS = 1000;
   const [slotsData, setSlotsData] = useState(() => {
     const list = Array.from({ length: TOTAL_SLOTS }, (_, i) => ({
@@ -117,7 +115,7 @@ export default function App() {
   const [bannerHasAudio, setBannerHasAudio] = useState(false);
   const [mediaError, setMediaError] = useState('');
 
-  // Socket Connection Listener
+  // Sinkronisasi Socket
   useEffect(() => {
     socket.on('connect', () => {
       setIsConnected(true);
@@ -145,9 +143,9 @@ export default function App() {
     socket.emit('update_billboard', patch);
   };
 
-  // Helper Hitung Biaya Slot & Rasio
+  // Helper Biaya Slot
   const getSlotCost = (ratio) => {
-    if (currentPlan === 'Super') return 0; // Super unlimited
+    if (currentPlan === 'Super') return 0;
     let multiplier = 1;
     if (ratio === '5:1') multiplier = 5;
     else if (ratio === '2x2') multiplier = 4;
@@ -155,13 +153,12 @@ export default function App() {
 
     const basePrice = isNewUser ? 500 : 1000;
     if (currentPlan === 'Basic') {
-      return (multiplier - 1) * basePrice; // 1 slot gratis
+      return (multiplier - 1) * basePrice;
     }
-    // Pro: manipulasi / geser slot bertambah
     return multiplier * basePrice;
   };
 
-  // Filter Audio & Deteksi Durasi Video
+  // Filter Media Video & Validasi Durasi
   const handleMediaUpload = (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -179,7 +176,6 @@ export default function App() {
         window.URL.revokeObjectURL(vidObj.src);
         const duration = vidObj.duration;
 
-        // Limit Durasi
         if (currentPlan === 'Basic' && duration > 120) {
           setMediaError('Durasi video basic maks 2 menit! Upgrade ke Pro atau Super.');
           return;
@@ -189,9 +185,7 @@ export default function App() {
           return;
         }
 
-        // Deteksi Audio Stream di Video
-        const audioTracks = vidObj.mozHasAudio || Boolean(vidObj.webkitAudioDecodedByteCount) || Boolean(vidObj.audioTracks?.length);
-        const hasAudio = audioTracks !== undefined ? true : true; // default true jika video audio aktif
+        const hasAudio = true;
         setBannerHasAudio(hasAudio);
         if (hasAudio) {
           setMusicTitle('');
@@ -236,7 +230,7 @@ export default function App() {
   };
   return (
     <div className="min-h-screen w-full bg-[#070b12] text-zinc-100 flex flex-col items-center selection:bg-emerald-500 selection:text-black">
-      {/* Keyframe Animasi Modern, Sweep Shimmer Pro, & Gold Pulsing Super */}
+      {/* Animasi Style CSS */}
       <style>{`
         @keyframes proSweep {
           0% { transform: translateX(-150%) skewX(-25deg); }
@@ -267,9 +261,9 @@ export default function App() {
         }
       `}</style>
 
-      {/* Top Header Responsif Desktop & Mobile */}
+      {/* Header Bar dengan Custom Logo & Icon */}
       <header className="w-full max-w-7xl flex items-center justify-between py-4 px-4 sm:px-8 sticky top-0 z-40 bg-[#070b12]/85 backdrop-blur-xl border-b border-zinc-850">
-        {/* Kiri: Hamburger Menu Berputar Menjadi Chevron Back */}
+        {/* Hamburger Menu Berputar */}
         <div className="flex items-center gap-3">
           <button
             onClick={() => setIsMenuOpen(!isMenuOpen)}
@@ -283,7 +277,7 @@ export default function App() {
           </button>
         </div>
 
-        {/* Tengah: Nama Website (ProMotion) dengan Animasi Bergerak Sesuai Tier */}
+        {/* Brand Bar: logopromotion.png + motionpro.png / motionsuper.png */}
         <div className={`relative overflow-hidden flex items-center gap-2.5 px-4 sm:px-6 py-2 rounded-2xl border transition-all ${
           currentPlan === 'Super'
             ? 'super-gold-card'
@@ -292,27 +286,34 @@ export default function App() {
             : 'bg-zinc-900 border-emerald-500/50 shadow-md'
         }`}>
           {currentPlan === 'Pro' && <div className="pro-sweep-light" />}
-          <div className={`w-7 h-7 rounded-xl flex items-center justify-center font-black text-xs ${
-            currentPlan === 'Super' ? 'bg-amber-400 text-black' : 'bg-emerald-500 text-black'
-          }`}>
-            P
-          </div>
+
+          {/* Logo ProMotion Custom */}
+          <img src="/logopromotion.png" alt="Logo" className="w-7 h-7 object-contain rounded-lg" />
+
           <span className="font-black text-base sm:text-lg tracking-wider bg-gradient-to-r from-white via-zinc-200 to-zinc-400 bg-clip-text text-transparent">
             ProMotion
           </span>
-          <span className={`text-[10px] font-black px-2 py-0.5 rounded-md flex items-center gap-1 ${
+
+          {/* Badge Icon Custom (motionpro.png & motionsuper.png) */}
+          <span className={`text-[10px] font-black px-2 py-0.5 rounded-md flex items-center gap-1.5 ${
             currentPlan === 'Super'
               ? 'bg-amber-400/20 text-amber-300 border border-amber-400/50'
               : currentPlan === 'Pro'
               ? 'bg-cyan-950 text-cyan-300 border border-cyan-500/50'
               : 'bg-emerald-950 text-emerald-300 border border-emerald-500/40'
           }`}>
-            {currentPlan === 'Super' ? <Gem className="w-3 h-3 text-amber-400" /> : <Sparkles className="w-3 h-3 text-cyan-400" />}
+            {currentPlan === 'Super' ? (
+              <img src="/motionsuper.png" alt="Super" className="w-4 h-4 object-contain" />
+            ) : currentPlan === 'Pro' ? (
+              <img src="/motionpro.png" alt="Pro" className="w-4 h-4 object-contain" />
+            ) : (
+              <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+            )}
             {currentPlan.toUpperCase()}
           </span>
         </div>
 
-        {/* Kanan: Status Diganti DAFTAR (Abu-abu) & LOGIN (Hijau Glassmorphism) */}
+        {/* Status: DAFTAR & LOGIN */}
         <div className="flex items-center gap-2 sm:gap-3">
           <button className="px-3.5 py-1.5 rounded-xl bg-zinc-850/80 hover:bg-zinc-800 text-xs font-semibold text-zinc-400 hover:text-white border border-zinc-700/60 transition-all">
             Daftar
@@ -337,10 +338,9 @@ export default function App() {
         </div>
       </div>
 
-      {/* Layout Grid 1000 Slots - Adaptif Desktop & Mobile */}
+      {/* Grid 1000 Slots */}
       <main className="w-full max-w-7xl px-3 sm:px-6 my-4 flex-1 flex flex-col items-center">
         <div className="relative w-full rounded-3xl bg-[#0b0f17]/95 border border-zinc-800/80 p-3 sm:p-6 shadow-2xl backdrop-blur-xl">
-          {/* Scrollable Container dengan Animasi Sentuh Lembut */}
           <div className="overflow-x-auto overflow-y-auto max-h-[680px] p-2 rounded-2xl scrollbar-thin scrollbar-thumb-zinc-700 scroll-smooth">
             <div 
               className="grid gap-3 sm:gap-4 min-w-[750px] sm:min-w-full"
@@ -377,12 +377,11 @@ export default function App() {
                   >
                     {slot.filled && isPro && <div className="pro-sweep-light" />}
 
-                    {/* Widget Grid Pojok Kanan Atas dengan Animasi Pembesar */}
+                    {/* Widget Grid Hijau Pojok */}
                     <div className="w-full flex items-center justify-between text-[10px] z-10">
                       <span className="font-bold text-emerald-400 bg-emerald-950/80 px-1.5 py-0.5 rounded border border-emerald-500/30">
                         {slot.ratio}
                       </span>
-                      {/* Widget Hijau Pojok */}
                       <div className="w-4 h-4 rounded-md bg-emerald-500/20 border border-emerald-400 flex items-center justify-center transition-transform duration-300 group-hover:scale-125 shadow-[0_0_8px_rgba(16,185,129,0.6)]">
                         <div className="w-1.5 h-1.5 bg-emerald-400 rounded-sm" />
                       </div>
@@ -412,7 +411,7 @@ export default function App() {
                       </div>
                     )}
 
-                    {/* Bagian Bawah Banner: Foto Profil, Nama, Equalizer/Music */}
+                    {/* Bawah Slot: Avatar, Nama, Audio Indicator */}
                     {slot.filled && (
                       <div className="w-full flex items-center justify-between pt-1 border-t border-zinc-800/60 z-10">
                         <div className="flex items-center gap-1.5 truncate">
@@ -437,7 +436,7 @@ export default function App() {
           </div>
         </div>
       </main>
-      {/* Modal Konfigurasi Banner */}
+      {/* Modal Konfigurasi Banner Slot */}
       {isConfigModalOpen && (
         <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4">
           <div className="w-full max-w-md rounded-3xl bg-[#0e121a] border border-zinc-800 p-6 flex flex-col gap-4 shadow-2xl relative max-h-[90vh] overflow-y-auto">
@@ -494,7 +493,7 @@ export default function App() {
               </div>
             </div>
 
-            {/* Media Upload & Pratinjau Bergerak Langsung */}
+            {/* Media Upload & Pratinjau Bergerak */}
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-bold text-zinc-300">Media Visual (Gambar / GIF / Video)</label>
               {bannerMedia ? (
@@ -526,13 +525,13 @@ export default function App() {
               )}
             </div>
 
-            {/* Bagian Musik / Audio */}
+            {/* Bagian Musik */}
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-bold text-zinc-300">Audio Latar Belakang</label>
               {bannerHasAudio ? (
                 <div className="p-3 rounded-xl bg-amber-950/30 border border-amber-800/40 text-[11px] text-amber-300 flex items-center gap-2">
                   <Volume2 className="w-4 h-4 flex-shrink-0" />
-                  <span>Video memiliki audio bawaan. Penambahan musik dinonaktifkan otomatis.</span>
+                  <span>Video memiliki audio bawaan. Penambahan musik dinonaktifkan.</span>
                 </div>
               ) : musicTitle ? (
                 <div className="p-3 rounded-2xl bg-[#141923] border border-zinc-800 flex items-center justify-between">
@@ -571,7 +570,7 @@ export default function App() {
               />
             </div>
 
-            {/* Simpan Konfigurasi */}
+            {/* Pasang Sekarang */}
             <button
               onClick={() => {
                 if (selectedSlotIndex === null) return;
@@ -601,7 +600,7 @@ export default function App() {
         </div>
       )}
 
-      {/* Navigasi Pemilihan Musik Rekomendasi */}
+      {/* Navigasi Musik Rekomendasi */}
       {isSelectMusicOpen && (
         <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center p-4">
           <div className="w-full max-w-sm rounded-3xl bg-[#0e121a] border border-zinc-800 p-5 flex flex-col gap-3">
@@ -632,12 +631,12 @@ export default function App() {
         </div>
       )}
 
-      {/* Drawer Menu Hamburger (Tulisan Pengaturan Dihapus) */}
+      {/* Drawer Menu Hamburger */}
       {isMenuOpen && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex justify-end">
           <div className="w-full max-w-sm h-full bg-[#0c1017] border-l border-zinc-800 p-5 flex flex-col justify-between overflow-y-auto">
             <div className="flex flex-col gap-4">
-              {/* Header Drawer Bersih */}
+              {/* Header Drawer */}
               <div className="flex items-center justify-end pb-1 border-b border-zinc-800/50">
                 <button onClick={() => setIsMenuOpen(false)} className="p-1.5 rounded-full bg-zinc-850 text-zinc-400 hover:text-white">
                   <X className="w-4 h-4" />
@@ -659,12 +658,12 @@ export default function App() {
                 ))}
               </div>
 
-              {/* Konten Tab Langganan & Pricing Pancingan */}
+              {/* Tab Langganan dengan Icon Custom */}
               {activeTab === 'langganan' && (
                 <div className="flex flex-col gap-3">
                   <span className="text-xs font-black text-zinc-400">Pilih Paket Langganan</span>
 
-                  {/* 1. Motion Basic */}
+                  {/* Motion Basic */}
                   <div
                     onClick={() => {
                       setCurrentPlan('Basic');
@@ -675,7 +674,7 @@ export default function App() {
                     }`}
                   >
                     <div className="flex items-center justify-between mb-1">
-                      <span className="text-xs font-bold text-white flex items-center gap-1.5">
+                      <span className="text-xs font-bold text-white flex items-center gap-2">
                         <ShieldCheck className="w-4 h-4 text-zinc-400" /> 1. Motion Basic
                       </span>
                       <span className="text-xs font-black text-emerald-400">Gratis</span>
@@ -687,7 +686,7 @@ export default function App() {
                     </ul>
                   </div>
 
-                  {/* 2. Motion Pro */}
+                  {/* Motion Pro (Icon motionpro.png) */}
                   <div
                     onClick={() => {
                       setCurrentPlan('Pro');
@@ -699,8 +698,8 @@ export default function App() {
                   >
                     <div className="pro-sweep-light" />
                     <div className="flex items-center justify-between mb-1 relative z-10">
-                      <span className="text-xs font-bold text-cyan-300 flex items-center gap-1.5">
-                        <Sparkles className="w-4 h-4 text-cyan-400" /> 2. Motion Pro
+                      <span className="text-xs font-bold text-cyan-300 flex items-center gap-2">
+                        <img src="/motionpro.png" alt="Pro" className="w-4 h-4 object-contain" /> 2. Motion Pro
                       </span>
                       <span className="text-xs font-black text-cyan-300">Rp 29.000 / bln</span>
                     </div>
@@ -711,7 +710,7 @@ export default function App() {
                     </ul>
                   </div>
 
-                  {/* 3. Motion Super (Pancingan Selisih Dikit) */}
+                  {/* Motion Super (Icon motionsuper.png) */}
                   <div
                     onClick={() => {
                       setCurrentPlan('Super');
@@ -722,8 +721,8 @@ export default function App() {
                     }`}
                   >
                     <div className="flex items-center justify-between mb-1">
-                      <span className="text-xs font-bold text-amber-300 flex items-center gap-1.5">
-                        <Gem className="w-4 h-4 text-amber-400" /> 3. Motion Super
+                      <span className="text-xs font-bold text-amber-300 flex items-center gap-2">
+                        <img src="/motionsuper.png" alt="Super" className="w-4 h-4 object-contain" /> 3. Motion Super
                       </span>
                       <span className="text-xs font-black text-amber-300">Rp 35.000 / bln</span>
                     </div>
@@ -737,7 +736,7 @@ export default function App() {
               )}
             </div>
 
-            {/* Profile Glassmorphism di Pojok Bawah Menu */}
+            {/* Profil Glassmorphism di Pojok Bawah */}
             <div className="w-full p-4 rounded-3xl bg-zinc-900/40 border border-zinc-800/80 backdrop-blur-xl flex flex-col gap-3 shadow-2xl mt-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
@@ -755,7 +754,6 @@ export default function App() {
                 </button>
               </div>
 
-              {/* Edit Mode Profil */}
               {isEditingProfile && (
                 <div className="flex flex-col gap-2 pt-2 border-t border-zinc-800">
                   <input
@@ -790,7 +788,7 @@ export default function App() {
                 </div>
               )}
 
-              {/* Tautan Medsos Bawaan & Custom */}
+              {/* Tautan Medsos */}
               <div className="flex items-center gap-1.5 flex-wrap pt-1">
                 {socials.map((s) => (
                   <a
@@ -820,7 +818,7 @@ export default function App() {
         </div>
       )}
 
-      {/* Modal Tambah Medsos (TikTok, Instagram, Facebook, Discord, LinkedIn, Linktree, & Custom Icon) */}
+      {/* Modal Tambah Medsos */}
       {isAddSocialModal && (
         <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center p-4">
           <div className="w-full max-w-sm rounded-3xl bg-[#0e121a] border border-zinc-800 p-5 flex flex-col gap-3">
@@ -891,7 +889,7 @@ export default function App() {
         </div>
       )}
 
-      {/* Background Audio Hidden Player */}
+      {/* Hidden Audio Player */}
       {musicSrc && <audio ref={audioRef} src={musicSrc} loop />}
     </div>
   );
